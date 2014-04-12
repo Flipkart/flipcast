@@ -1,0 +1,92 @@
+#! /bin/bash
+# Start script for UPS API
+
+#Application Name
+PACKAGE=flipcast-service
+
+PACKAGE_HOME=/var/lib/${PACKAGE}
+
+#Application Jar
+APP_JAR="flipcast-service.jar"
+
+#Application User
+PACKAGE_USER=flipcast
+
+#OOM Restart Command
+export OOM_RESTART_CMD="\"/etc/init.d/${PACKAGE} force-restart\""
+
+#Memory settings
+JAVA_OPTS="${JAVA_OPTS} -Xms1024m"
+JAVA_OPTS="${JAVA_OPTS} -Xmx1024m"
+JAVA_OPTS="${JAVA_OPTS} -Xmn512m"
+JAVA_OPTS="${JAVA_OPTS} -XX:NewSize=512m"
+JAVA_OPTS="${JAVA_OPTS} -XX:MaxNewSize=512m"
+
+
+# Set Server JVM
+JAVA_OPTS="${JAVA_OPTS} -server"
+
+#Enable NUMA (For modern processors) - Reduces thread contention
+JAVA_OPTS="${JAVA_OPTS} -XX:+UseNUMA"
+
+# Set to headless, just in case
+JAVA_OPTS="${JAVA_OPTS} -Djava.awt.headless=true"
+
+#Set encoding to UTF-8
+JAVA_OPTS="${JAVA_OPTS} -Dfile.encoding=UTF-8"
+
+#Program Name
+JAVA_OPTS="${JAVA_OPTS} -D${PACKAGE}"
+
+# Reduce the per-thread stack size
+JAVA_OPTS="${JAVA_OPTS} -Xss180k"
+
+# Force the JVM to use IPv4 stack
+JAVA_OPTS="${JAVA_OPTS} -Djava.net.preferIPv4Stack=true"
+
+# GC Options
+JAVA_OPTS="${JAVA_OPTS} -XX:+UseParNewGC"
+JAVA_OPTS="${JAVA_OPTS} -XX:+UseConcMarkSweepGC"
+JAVA_OPTS="${JAVA_OPTS} -XX:SurvivorRatio=8"
+JAVA_OPTS="${JAVA_OPTS} -XX:CMSInitiatingOccupancyFraction=80"
+JAVA_OPTS="${JAVA_OPTS} -XX:NewRatio=5"
+JAVA_OPTS="${JAVA_OPTS} -XX:+UseCMSInitiatingOccupancyOnly"
+JAVA_OPTS="${JAVA_OPTS} -XX:+CMSParallelRemarkEnabled"
+JAVA_OPTS="${JAVA_OPTS} -XX:ParallelGCThreads=4"
+JAVA_OPTS="${JAVA_OPTS} -XX:MaxTenuringThreshold=0"
+JAVA_OPTS="${JAVA_OPTS} -XX:TargetSurvivorRatio=70"
+
+#Memory Setting
+JAVA_OPTS="${JAVA_OPTS} -XX:PermSize=256m"
+JAVA_OPTS="${JAVA_OPTS} -XX:MaxPermSize=256m"
+
+#Enable super options (For HotSpot optimizations)
+JAVA_OPTS="${JAVA_OPTS} -XX:+AggressiveOpts"
+
+#Disable Biased locking
+#JAVA_OPTS="${JAVA_OPTS} -XX:-UseBiasedLocking"
+
+#Threading Policies
+JAVA_OPTS="${JAVA_OPTS} -XX:+UseThreadPriorities"
+JAVA_OPTS="${JAVA_OPTS} -XX:ThreadPriorityPolicy=30"
+
+# General Tuning Settings
+JAVA_OPTS="${JAVA_OPTS} -XX:CompileThreshold=50000"
+
+# Causes the JVM to dump its heap on OutOfMemory.
+JAVA_OPTS="${JAVA_OPTS} -XX:+HeapDumpOnOutOfMemoryError"
+JAVA_OPTS="${JAVA_OPTS} -XX:OnOutOfMemoryError=${OOM_RESTART_CMD}"
+
+#Setup remote JMX monitoring
+JAVA_OPTS="${JAVA_OPTS} -Dcom.sun.management.jmxremote"
+JAVA_OPTS="${JAVA_OPTS} -Dcom.sun.management.jmxremote.port=29005"
+JAVA_OPTS="${JAVA_OPTS} -Dcom.sun.management.jmxremote.authenticate=false"
+JAVA_OPTS="${JAVA_OPTS} -Dcom.sun.management.jmxremote.ssl=false"
+JAVA_OPTS="${JAVA_OPTS} -Dhazelcast.jmx=true"
+
+#Java Executable
+JAVA=`which java`
+
+#Execute main application JAR
+EXEC_CMD="exec -a ${PACKAGE} ${JAVA} -jar ${JAVA_OPTS} ${APP_JAR}"
+eval ${EXEC_CMD}
