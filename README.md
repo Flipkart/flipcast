@@ -18,6 +18,8 @@ Supported Features:
 * Message history management
 * Pluggable data source (Default: MongoDB)
 * Automatic backpressure management
+* Unicast, Multicast & Broadcast Push API
+* Auto Batching for multicast & broadcast push
 
 Library Dependencies
 --------------------
