@@ -161,6 +161,11 @@ object MongoDeviceDataSource extends DeviceDataSource {
     }
   }
 
+  def pushHistory(config: String, filter: Map[String, Any]) = {
+    val collection = ConnectionHelper.collection("push_message_history")
+    collection.
+  }
+
   private def buildQuery(filter: Map[String, Any], deleted: Boolean = false, addDeleted: Boolean = false) = {
     val query = MongoDBObject.newBuilder
     filter.foreach( d => {
@@ -228,7 +233,6 @@ object MongoDeviceDataSource extends DeviceDataSource {
     ConnectionHelper.createIndex(collectionName, Seq(("osName", 1), ("osVersion", 1), ("sentDate", 0), ("brand", 1)))
     ConnectionHelper.createIndex(collectionName, Seq(("appName", 1), ("appVersion", 1), ("sentDate", 0), ("brand", 1)))
     ConnectionHelper.createIndex(collectionName, Seq(("brand", 1), ("sentDate", 0)))
-
   }
 
 }
