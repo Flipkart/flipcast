@@ -17,13 +17,16 @@ trait PushConfigurationProtocol extends DefaultJsonProtocol with SprayJsonSuppor
 
   implicit val GcmConfigFormat = jsonFormat3(GcmConfig)
 
+  implicit val MpnsConfigFormat = jsonFormat1(MpnsConfig)
+
   implicit object PushConfigFormat extends RootJsonFormat[PushConfig] {
 
     def write(obj: PushConfig) = {
       JsObject(
         "configName" -> JsString(obj.configName),
         "apns" -> obj.apns.toJson,
-        "gcm" -> obj.gcm.toJson
+        "gcm" -> obj.gcm.toJson,
+        "mpns" -> obj.mpns.toJson
       )
     }
 
@@ -38,7 +41,8 @@ trait PushConfigurationProtocol extends DefaultJsonProtocol with SprayJsonSuppor
       }
       val apnsConfig = json.asJsObject.fields("apns").convertTo[ApnsConfig]
       val gcmConfig = json.asJsObject.fields("gcm").convertTo[GcmConfig]
-      PushConfig(configName, gcmConfig, apnsConfig)
+      val mpnsConfig = json.asJsObject.fields("mpns").convertTo[MpnsConfig]
+      PushConfig(configName, gcmConfig, apnsConfig, mpnsConfig)
     }
   }
 
