@@ -161,10 +161,6 @@ object MongoDeviceDataSource extends DeviceDataSource {
     }
   }
 
-  def pushHistory(config: String, filter: Map[String, Any]) = {
-    val collection = ConnectionHelper.collection("push_message_history")
-    collection.
-  }
 
   private def buildQuery(filter: Map[String, Any], deleted: Boolean = false, addDeleted: Boolean = false) = {
     val query = MongoDBObject.newBuilder
