@@ -35,6 +35,19 @@
         </filter>
     </appender>
 
+    <appender name="METRICS_LOG" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>metrics.log</file>
+        <append>true</append>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <FileNamePattern>metrics.%d{yyyy-MM-dd}.log</FileNamePattern>
+            <maxHistory>7</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%message%n</pattern>
+        </encoder>
+    </appender>
+
+
     <root level="INFO">
         <level value="INFO" />
         <appender-ref ref="STDOUT"/>
@@ -43,6 +56,10 @@
 
     <logger name="access_log" level="INFO" additivity="false">
         <appender-ref ref="ACCESS_LOG" />
+    </logger>
+
+    <logger name="metrics" level="INFO" additivity="false">
+        <appender-ref ref="METRICS_LOG" />
     </logger>
 
 </configuration>

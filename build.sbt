@@ -43,6 +43,7 @@ libraryDependencies ++= Seq(
   "com.fasterxml.uuid"              %   "java-uuid-generator"           % "3.1.3",
   "com.codahale.metrics"            %   "metrics-logback"               % "3.0.1",
   "com.codahale.metrics"            %   "metrics-graphite"              % "3.0.1",
+  "com.codahale.metrics"            %   "metrics-jvm"                   % "3.0.1",
   "com.hazelcast"                   %   "hazelcast"                     % "3.1.2",
   "commons-validator"               %   "commons-validator"             % "1.4.0",
   "commons-codec"                   %   "commons-codec"                 % "1.5",

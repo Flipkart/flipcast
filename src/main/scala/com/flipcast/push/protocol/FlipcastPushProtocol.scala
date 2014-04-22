@@ -22,10 +22,15 @@ trait FlipcastPushProtocol extends DefaultJsonProtocol with SprayJsonSupport {
         case Some(x) => JsBoolean(x)
         case _ => JsBoolean(x = false)
       }
+      val data = try {
+        JsonParser(obj.data).asJsObject
+      } catch {
+        case ex: Exception => JsString(obj.data)
+      }
       JsObject(
         "configName" -> JsString(obj.configName),
         "registration_ids" -> JsArray(obj.registration_ids.filter( _.trim.length > 0).map( JsString(_))),
-        "data" -> JsonParser(obj.data).asJsObject,
+        "data" -> data,
         "ttl" -> ttl,
         "delayWhileIdle" -> delayWhileIdle
       )

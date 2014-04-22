@@ -28,4 +28,6 @@ trait FlipcastService extends HttpService {
 
   val broadcast = new BroadcastHttpService().broadcastRoute
 
+  val pushHistory = new PushHistoryStatsHttpService().pushHistoryRoute
+
 }

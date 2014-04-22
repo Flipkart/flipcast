@@ -17,7 +17,7 @@ class PingHttpServiceSpec extends Specification with Specs2RouteTest with Flipca
 
   def actorRefFactory = system
 
-  Flipcast.registerServices()
+  Flipcast.boot()
 
   "Ping Service" should {
     "Return Pong for GET requests" in {

@@ -11,5 +11,6 @@ class FlipcastRouter extends Actor with FlipcastService {
 
   def actorRefFactory = context
 
-  def receive = runRoute(ping ~ health ~ config ~ device ~ unicast ~ multicast ~ broadcast)
+  def receive =
+    runRoute(ping ~ health ~ config ~ device ~ unicast ~ multicast ~ broadcast ~ pushHistory)
 }

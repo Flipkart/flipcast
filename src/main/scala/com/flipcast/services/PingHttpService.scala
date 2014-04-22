@@ -1,6 +1,6 @@
 package com.flipcast.services
 
-import com.flipcast.common.{BaseHttpServiceActor, BaseHttpService}
+import com.flipcast.common.{FlipCastMetricsRegistry, BaseHttpServiceActor, BaseHttpService}
 import com.flipcast.model.requests.{ServiceRequest, PingServiceRequest}
 import com.flipcast.model.responses.{ServiceSuccessResponse, ServiceUnhandledResponse, PingServiceResponse}
 

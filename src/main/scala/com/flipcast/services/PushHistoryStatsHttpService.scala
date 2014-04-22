@@ -3,31 +3,19 @@ package com.flipcast.services
 import com.flipcast.common.{BaseHttpServiceActor, BaseHttpService}
 import com.flipcast.model.requests._
 import com.flipcast.push.protocol.PushConfigurationProtocol
-import com.flipcast.push.config.{PushConfig, PushConfigurationManager}
 import com.flipcast.model.responses._
-import spray.json.JsonParser
-import com.flipcast.push.config.PushConfig
-import com.flipcast.model.responses.ServiceFailureResponse
-import com.flipcast.model.responses.ServiceNotFoundResponse
-import com.flipcast.model.responses.ServiceSuccessResponse
-import scala.Some
-import com.flipcast.model.responses.UpdatePushConfigResponse
 import com.flipcast.model.responses.ServiceUnhandledResponse
-import com.flipcast.push.config.PushConfig
 import com.flipcast.model.responses.ServiceFailureResponse
-import com.flipcast.model.responses.ServiceNotFoundResponse
 import com.flipcast.model.responses.ServiceSuccessResponse
 import com.flipcast.model.requests.ServiceRequest
-import com.flipcast.model.requests.GetPushConfigRequest
-import scala.Some
-import com.flipcast.model.requests.UpdatePushConfigRequest
-import com.flipcast.model.requests.DeletePushConfigRequest
-import com.flipcast.model.responses.UpdatePushConfigResponse
+import java.util.Date
+import com.flipcast.push.common.DeviceDataSourceManager
+import scala.concurrent.duration.Duration
 
 /**
  * Service for extracting push history
  *
- * @author
+ * @author Phaneesh Nagaraja
  */
 class PushHistoryStatsHttpService (implicit val context: akka.actor.ActorRefFactory,
                                    implicit val serviceRegistry: ServiceRegistry) extends BaseHttpService {
@@ -39,7 +27,13 @@ class PushHistoryStatsHttpService (implicit val context: akka.actor.ActorRefFact
   val pushHistoryRoute = path("flipcast" / "push" / "history" / Segment) { configName: String =>
     get { ctx =>
         implicit val reqCtx = ctx
-        worker ! ServiceRequest[GetAllPushHistoryRequest](GetAllPushHistoryRequest(configName))
+        worker ! ServiceRequest[GetAllPushHistoryRequest](GetAllPushHistoryRequest(configName, "1d"))
+      }
+    } ~
+    path("flipcast" / "push" / "history" / Segment / Segment ) { (configName: String, from: String) =>
+      get { ctx =>
+        implicit val reqCtx = ctx
+        worker ! ServiceRequest[GetAllPushHistoryRequest](GetAllPushHistoryRequest(configName, from))
       }
     }
 }
@@ -50,10 +44,9 @@ class PushHistoryHttpServiceWorker extends BaseHttpServiceActor with PushConfigu
     data match {
       case request: GetAllPushHistoryRequest =>
         try {
-          PushConfigurationManager.config(request.configName) match {
-            case Some(config) => ServiceSuccessResponse[PushConfig](config)
-            case _ => ServiceNotFoundResponse(request.configName +" not found")
-          }
+          val from = new Date(System.currentTimeMillis() - Duration(request.from).toMillis)
+          val data = DeviceDataSourceManager.dataSource(request.configName).pushHistory(request.configName, from)
+          ServiceSuccessResponse[GetAllPushHistoryResponse](GetAllPushHistoryResponse(request.configName, data))
         } catch {
           case ex: Exception => ServiceFailureResponse(ex)
         }

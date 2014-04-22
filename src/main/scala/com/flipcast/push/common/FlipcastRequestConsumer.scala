@@ -27,6 +27,8 @@ trait  FlipcastRequestConsumer extends Actor {
 
   var sidelineChannel: ActorRef = null
 
+  var resendChannel: ActorRef = null
+
   var consumerRef: ActorRef = null
 
   def configType() : String
@@ -45,6 +47,9 @@ trait  FlipcastRequestConsumer extends Actor {
     }
     if(consumerRef == null) {
       consumerRef = ConnectionHelper.createConsumer(config.inputQueueName, config.inputExchange, self, basicQos())
+    }
+    if(resendChannel == null) {
+      resendChannel = ConnectionHelper.createProducer(config.inputQueueName, config.inputExchange)
     }
     init()
     log.info("Starting message consumer on: " +config.inputExchange +"/" +config.inputQueueName)
@@ -72,6 +77,11 @@ trait  FlipcastRequestConsumer extends Actor {
 
   private def sideline(message: Array[Byte]) {
     sidelineChannel ! Publish(config.sidelineExchange, config.sidelineQueueName, message, ConnectionHelper.messageProperties, mandatory = false,
+      immediate = false)
+  }
+
+  def resend(message: String) {
+    resendChannel ! Publish(config.sidelineExchange, config.sidelineQueueName, message.getBytes, ConnectionHelper.messageProperties, mandatory = false,
       immediate = false)
   }
 

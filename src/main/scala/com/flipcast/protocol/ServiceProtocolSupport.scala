@@ -3,13 +3,11 @@ package com.flipcast.protocol
 import spray.json._
 import spray.httpx.SprayJsonSupport
 import com.flipcast.model.responses._
-import com.flipcast.push.protocol.DeviceDataProtocol
-import com.flipcast.push.model.{DeviceOperatingSystemType, DeviceData}
-import com.flipcast.push.model.responses.DeviceDetailsRegisterResponse
+import com.flipcast.push.protocol.{PushHistoryDataProtocol, DeviceDataProtocol}
+import com.flipcast.push.model.{PushHistoryData, DeviceOperatingSystemType, DeviceData}
 import com.flipcast.model.responses.StatusCheckResponse
 import com.flipcast.model.responses.InRotationResponse
 import com.flipcast.model.responses.PingServiceResponse
-import com.flipcast.push.model.DeviceData
 import com.flipcast.model.responses.OutOfRotationResponse
 import com.flipcast.push.model.responses.DeviceDetailsRegisterResponse
 import com.flipcast.model.responses.UpdatePushConfigResponse
@@ -19,7 +17,9 @@ import com.flipcast.model.responses.UpdatePushConfigResponse
  *
  * @author Phaneesh Nagaraja
  */
-trait ServiceProtocolSupport extends DefaultJsonProtocol with SprayJsonSupport with DeviceDataProtocol {
+trait ServiceProtocolSupport extends DefaultJsonProtocol
+                  with SprayJsonSupport with DeviceDataProtocol
+                  with PushHistoryDataProtocol  {
 
   /**
    * JSON format for ping response
@@ -77,4 +77,20 @@ trait ServiceProtocolSupport extends DefaultJsonProtocol with SprayJsonSupport w
         DeviceOperatingSystemType.Unknown,"Unknown","Unknown","Unknown","Unknown","Unknown")))
     }
   }
+
+  /**
+   * JSON format for push history request
+   */
+  implicit object GetAllPushHistoryResponseFormat extends RootJsonFormat[GetAllPushHistoryResponse] {
+
+    def write(obj: GetAllPushHistoryResponse) = {
+        obj.data.toJson
+    }
+
+    def read(json: JsValue) = {
+      val data = json.convertTo[PushHistoryData]
+      GetAllPushHistoryResponse(configName = "NA", data)
+    }
+  }
+
 }

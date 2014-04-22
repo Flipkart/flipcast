@@ -5,4 +5,4 @@ package com.flipcast.model.requests
  *
  * @author Phaneesh Nagaraja
  */
-case class GetAllPushHistoryRequest(configName: String)
+case class GetAllPushHistoryRequest(configName: String, from: String)

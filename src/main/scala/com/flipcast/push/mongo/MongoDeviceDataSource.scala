@@ -6,7 +6,7 @@ import com.flipcast.mongo.ConnectionHelper
 import com.mongodb.casbah.commons.MongoDBObject
 import com.mongodb.util.JSON
 import com.mongodb.casbah.Imports._
-import com.flipcast.push.model.{DeviceOperatingSystemType, DeviceData}
+import com.flipcast.push.model.{PushHistoryData, DeviceOperatingSystemType, DeviceData}
 import collection.JavaConverters._
 import com.flipcast.model.config.MongoConfig
 import com.flipcast.Flipcast
@@ -161,6 +161,34 @@ object MongoDeviceDataSource extends DeviceDataSource {
     }
   }
 
+  override def pushHistory(config: String, from: Date) = {
+    val collection = ConnectionHelper.collection("push_message_history")
+    val query = MongoDBObject.newBuilder
+    query += "configName" -> config
+    val expr = query.result() ++ ("sync_version" $gt from)
+    val total = collection.count(query.result())
+    val byPlatform = collection.aggregate(MongoDBObject("$match" -> expr),
+      MongoDBObject("$group" -> MongoDBObject("_id" -> "$osName", "counts" -> MongoDBObject("$sum" -> 1))))
+    val byBrand = collection.aggregate(MongoDBObject("$match" -> expr),
+      MongoDBObject("$group" -> MongoDBObject("_id" -> "$brand", "counts" -> MongoDBObject("$sum" -> 1))))
+    val byModel = collection.aggregate(MongoDBObject("$match" -> expr),
+      MongoDBObject("$group" -> MongoDBObject("_id" -> "$model", "counts" -> MongoDBObject("$sum" -> 1))))
+    val byVersion = collection.aggregate(MongoDBObject("$match" -> expr),
+      MongoDBObject("$group" -> MongoDBObject("_id" -> "$appVersion", "counts" -> MongoDBObject("$sum" -> 1))))
+    val resPlatform = byPlatform.results().asScala.map( d => {
+      d.getAsOrElse[String]("_id", "Unknown") -> d.getAsOrElse[BigDecimal]("counts", 0).toLong
+    })
+    val resBrand = byBrand.results().asScala.map( d => {
+      d.getAsOrElse[String]("_id", "Unknown") -> d.getAsOrElse[BigDecimal]("counts", 0).toLong
+    }).toMap
+    val resModel = byModel.results().asScala.map( d => {
+      d.getAsOrElse[String]("_id", "Unknown") -> d.getAsOrElse[BigDecimal]("counts", 0).toLong
+    }).toMap
+    val resVersion = byVersion.results().asScala.map( d => {
+      d.getAsOrElse[String]("_id", "Unknown") -> d.getAsOrElse[BigDecimal]("counts", 0).toLong
+    }).toMap
+    PushHistoryData(total, resPlatform ++: resBrand ++: resModel ++: resBrand ++: resVersion)
+  }
 
   private def buildQuery(filter: Map[String, Any], deleted: Boolean = false, addDeleted: Boolean = false) = {
     val query = MongoDBObject.newBuilder

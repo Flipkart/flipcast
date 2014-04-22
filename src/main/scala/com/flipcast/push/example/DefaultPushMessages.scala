@@ -23,6 +23,13 @@ case class DefaultGcmMessage(title: String, message: String)
  */
 case class DefaultApnsMessage(message: String)
 
+/**
+ * Model for represent mpns toast push message
+ * @param message Message content
+ */
+case class DefaultMpnsMessage(message: String)
+
+
 
 /**
  * JSON protocol support Default push message

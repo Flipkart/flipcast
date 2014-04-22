@@ -1,6 +1,7 @@
 package com.flipcast.push.common
 
-import com.flipcast.push.model.DeviceData
+import com.flipcast.push.model.{PushHistoryData, DeviceData}
+import java.util.Date
 
 /**
  * Trait for enabling pluggable device data providers
@@ -28,5 +29,7 @@ trait DeviceDataSource {
   def autoUpdateDeviceId(config: String, deviceIdentifier: String, newDeviceIdentifier: String) : Boolean
 
   def recordHistory(config: String, key: String, message: String) : Boolean
+
+  def pushHistory(config: String, from: Date) : PushHistoryData
 
 }

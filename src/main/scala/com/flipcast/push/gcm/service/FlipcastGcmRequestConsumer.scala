@@ -109,14 +109,17 @@ class FlipcastGcmRequestConsumer extends FlipcastRequestConsumer with FlipcastPu
                 idx = idx + 1
               })
             }
-            if(!failedIds.isEmpty)
-              Flipcast.serviceRegistry.actor("gcmRequestConsumer") ! FlipcastPushRequest(request.configName, failedIds.toList, request.data, request.ttl, request.delayWhileIdle).toJson.compactPrint
+            failedIds.isEmpty match {
+              case true => None
+              case false =>
+                resend(FlipcastPushRequest(request.configName, failedIds.toList, request.data, request.ttl, request.delayWhileIdle).toJson.compactPrint)
+            }
             //Record history for all successful devices
             request.registration_ids.diff(failedIds.toList).par.foreach( r => {
               Flipcast.serviceRegistry.actor("pushMessageHistoryManager") ! RecordPushHistoryRequest(request.configName, r, message)
             })
       case _ =>
-          consume(message)
+        resend(message)
       }
     true
   }

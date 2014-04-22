@@ -23,6 +23,12 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 import ExecutionContext.Implicits.global
 import akka.routing.Broadcast
+import com.flipcast.push.mpns.service.FlipcastMpnsRequestConsumer
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.TimeUnit
+import com.codahale.metrics.{Slf4jReporter, MetricFilter}
+import org.slf4j.LoggerFactory
+import com.flipcast.common.FlipCastMetricsRegistry
 
 
 /**
@@ -71,20 +77,12 @@ object Flipcast extends App {
 
   lazy val serviceRegistry = new ServiceRegistry()
 
-  //Register all the services
-  registerServices()
-
-  //Initialize database connection
-  ConnectionHelper.init()
-
-  //Initialize hazelcast cluster
-  HazelcastManager.init()
+  boot()
 
   implicit val pushConfigurationProvider : PushConfigurationProvider = new MongoBasedPushConfigurationProvider()(config.getConfig("flipcast.config.push.mongo"))
 
   PushConfigurationManager.init()
 
-  registerDataSources()
 
   var serviceState : ServiceState.Value = ServiceState.IN_ROTATION
 
@@ -93,6 +91,7 @@ object Flipcast extends App {
   log.info("Host: " +hostname)
   log.info("Port: " +serverConfig.port)
   log.info("--------------------------------------------------------------------------")
+
 
   /**
    * Startup server
@@ -106,14 +105,21 @@ object Flipcast extends App {
 
 
   def registerServices() {
+    //Ping Service
     serviceRegistry.register[PingHttpServiceWorker]("pingServiceWorker")
+    //Status Service
     serviceRegistry.register[StatusHttpServiceWorker]("statusServiceWorker")
+    //Device management Service
     serviceRegistry.register[DeviceManagementHttpServiceWorker]("deviceManagementServiceWorker", 4)
+    //Push History fetch service
+    serviceRegistry.register[PushHistoryHttpServiceWorker]("pushHistoryHttpServiceWorker")
 
+    //Push Messaging API
     serviceRegistry.register[UnicastHttpServiceWorker]("unicastServiceWorker", 4)
     serviceRegistry.register[MulticastHttpServiceWorker]("multicastServiceWorker", 2)
     serviceRegistry.register[BroadcastHttpServiceWorker]("broadcastServiceWorker", 1)
 
+    //Configuration Service
     serviceRegistry.register[PushConfigHttpServiceWorker]("pushConfigServiceWorker")
 
     //Auto update services for maintaining data sanity
@@ -126,6 +132,7 @@ object Flipcast extends App {
     //Message Consumers
     serviceRegistry.register[FlipcastGcmRequestConsumer]("gcmRequestConsumer")
     serviceRegistry.register[FlipcastApnsRequestConsumer]("apnsRequestConsumer")
+    serviceRegistry.register[FlipcastMpnsRequestConsumer]("mpnsRequestConsumer")
     serviceRegistry.register[BulkMessageConsumer]("bulkMessageConsumer")
 
   }
@@ -145,6 +152,35 @@ object Flipcast extends App {
     system.scheduler.scheduleOnce(30 seconds, serviceRegistry.actor("gcmRequestConsumer"), true)
     system.scheduler.scheduleOnce(35 seconds, serviceRegistry.actor("apnsRequestConsumer"), true)
     system.scheduler.scheduleOnce(40 seconds, serviceRegistry.actor("bulkMessageConsumer"), true)
+  }
+
+
+  def startMetrics() {
+    FlipCastMetricsRegistry.registerDefaults()
+    Slf4jReporter.forRegistry(FlipCastMetricsRegistry.metrics)
+      .outputTo(LoggerFactory.getLogger("metrics"))
+      .convertRatesTo(TimeUnit.SECONDS)
+      .convertDurationsTo(TimeUnit.MILLISECONDS)
+      .filter(MetricFilter.ALL)
+      .build()
+      .start(1, TimeUnit.MINUTES)
+  }
+
+
+  def boot() {
+    //Register all the services
+    registerServices()
+
+    //Initialize database connection
+    ConnectionHelper.init()
+
+    //Initialize hazelcast cluster
+    HazelcastManager.init()
+
+    //Register datasource
+    registerDataSources()
+
+
   }
 
 }

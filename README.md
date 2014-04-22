@@ -8,7 +8,7 @@ A scalable & easily customizable push messaging platform for mobile, devices and
 Supported platforms:
 * iOS
 * Android
-* Windows Phone 8 (WIP)
+* Windows Phone 8
 
 Supported Features:
 * Device register/unregister API
@@ -28,6 +28,8 @@ Library Dependencies
 * Akka 2.2.4
 * amqp-client - 1.3-ML4
 * apns - 0.2.3
+* casbah - 2.6.5
+* hazelcast - 3.1.2
 
 Infrastructure Dependencies
 ---------------------------
