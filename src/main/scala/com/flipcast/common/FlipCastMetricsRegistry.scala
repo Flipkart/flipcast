@@ -13,7 +13,7 @@ object FlipCastMetricsRegistry {
 
   def registerDefaults() {
     metrics.registerAll(new MemoryUsageGaugeSet())
-    metrics.registerAll(new ThreadStatesGaugeSet()())
+    metrics.registerAll(new ThreadStatesGaugeSet())
     metrics.registerAll(new GarbageCollectorMetricSet())
   }
 }

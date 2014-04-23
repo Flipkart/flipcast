@@ -66,6 +66,8 @@ test in assembly := {}
 
 jarName in assembly := "flipcast-service.jar"
 
+logLevel in assembly := Level.Warn
+
 excludedJars in assembly <<= (fullClasspath in assembly) map { cp =>
   cp filter {
     elem => {
