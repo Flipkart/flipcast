@@ -18,7 +18,7 @@ import com.flipcast.model.responses.ServiceSuccessResponse
 import com.flipcast.model.requests.ServiceRequest
 import spray.routing.RequestContext
 import com.flipcast.model.responses.PingServiceResponse
-import com.flipcast.push.model.responses.DeviceDetailsRegisterResponse
+import com.flipcast.push.model.responses.{DeviceDetailsUnregisterSuccessResponse, DeviceDetailsRegisterResponse}
 
 /**
  * Base service actor for handling any service requests
@@ -63,6 +63,8 @@ trait BaseHttpServiceActor extends Actor with ServiceProtocolSupport {
       }
     case request: InRotationServiceRequest =>
       processRequest(request)
+    case request: OutOfRotationServiceRequest =>
+      processRequest(request)
   }
 
   /**
@@ -81,6 +83,7 @@ trait BaseHttpServiceActor extends Actor with ServiceProtocolSupport {
             case d: StatusCheckResponse => send[StatusCheckResponse](StatusCodes.OK, request.ctx, d)
             case d: UpdatePushConfigResponse => send[UpdatePushConfigResponse](StatusCodes.OK, request.ctx, d)
             case d: DeviceDetailsRegisterResponse => send[DeviceDetailsRegisterResponse](StatusCodes.OK, request.ctx, d)
+            case d: DeviceDetailsUnregisterSuccessResponse => send[DeviceDetailsUnregisterSuccessResponse](StatusCodes.OK, request.ctx, d)
             case d: UnicastSuccessResponse => send[UnicastSuccessResponse](StatusCodes.OK, request.ctx, d)
             case d: MulticastSuccessResponse => send[MulticastSuccessResponse](StatusCodes.OK, request.ctx, d)
             case d: GetAllPushHistoryResponse => send[GetAllPushHistoryResponse](StatusCodes.OK, request.ctx, d)
@@ -162,6 +165,8 @@ trait BaseHttpServiceActor extends Actor with ServiceProtocolSupport {
         HttpResponse(status = status, entity = HttpEntity(ContentTypes.`application/json`, r.toJson.compactPrint))
       case r: DeviceDetailsRegisterResponse =>
         HttpResponse(status = status, entity = HttpEntity(ContentTypes.`application/json`, r.toJson.compactPrint))
+      case r: DeviceDetailsUnregisterSuccessResponse =>
+        HttpResponse(status = status, entity = HttpEntity(ContentTypes.`text/plain(UTF-8)`, "Success"))
       case r: UnicastSuccessResponse =>
         HttpResponse(status = status, entity = HttpEntity(ContentTypes.`application/json`, r.toJson.compactPrint))
       case r: MulticastSuccessResponse =>

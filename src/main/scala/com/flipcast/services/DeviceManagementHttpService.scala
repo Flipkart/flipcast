@@ -59,7 +59,7 @@ class DeviceManagementHttpServiceWorker extends BaseHttpServiceActor {
       case request: DeviceDetailsGetRequest =>
         val deviceData = DeviceDataSourceManager.dataSource(request.configName).get(request.configName, request.filter)
         deviceData match {
-          case Some(d) => ServiceSuccessResponse[DeviceData](d)
+          case Some(d) => ServiceSuccessResponse[DeviceDetailsRegisterResponse](DeviceDetailsRegisterResponse(d))
           case _ => ServiceNotFoundResponse("Device not found for: " +request.filter.map( f => f._1 +"->" +f._2).mkString(" / "))
         }
       case request: DeviceDetailsUnregisterRequest =>

@@ -42,7 +42,7 @@ object Flipcast extends App {
   /**
    * Logger for Flipcast app
    */
-  val log = Logger("Flipcast")
+  lazy val log = Logger("Flipcast")
 
   /**
    * Host name that will be used to bind the server
@@ -180,7 +180,8 @@ object Flipcast extends App {
     //Register datasource
     registerDataSources()
 
-
+    //Set service instance to active state
+    serviceState = ServiceState.IN_ROTATION
   }
 
 }

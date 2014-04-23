@@ -12,7 +12,7 @@ import com.flipcast.Flipcast
  */
 object GCMServicePool {
 
-  private val serviceCache = CacheBuilder.newBuilder()
+  private lazy val serviceCache = CacheBuilder.newBuilder()
     .maximumSize(5000)
     .concurrencyLevel(30)
     .recordStats()
