@@ -5,4 +5,4 @@ package com.flipcast.push.config
  *
  * @author Phaneesh Nagaraja
  */
-case class MpnsConfig(ex: String = "ex")
+case class MpnsConfig(secured: Boolean = false, certificate: String = "None", pass: String = "None")

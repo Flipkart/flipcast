@@ -3,7 +3,6 @@ package com.flipcast.push.mpns.service
 import com.flipcast.push.common.FlipcastRequestConsumer
 import com.flipcast.push.protocol.FlipcastPushProtocol
 import com.flipcast.push.gcm.protocol.GcmProtocol
-import spray.can.Http
 import spray.http.{StatusCodes, HttpHeaders}
 import java.util.UUID
 import spray.client.HttpDialog
@@ -39,11 +38,7 @@ class FlipcastMpnsRequestConsumer extends FlipcastRequestConsumer with FlipcastP
     val invalidDevices = new ListBuffer[String]()
     request.registration_ids.foreach( r => {
       val svcUrl = new URL(r)
-      val isSSL = svcUrl.getProtocol match {
-        case "https" => true
-        case _ => false
-      }
-      val mpnsHttpClient = Http.Connect(svcUrl.getHost, sslEncryption = isSSL)
+      val mpnsHttpClient = MPNSServicePool.service(request.configName, svcUrl.getHost)
       val mId = HttpHeaders.RawHeader("X-MessageID", UUID.randomUUID().toString)
       val mType = HttpHeaders.RawHeader("X-NotificationClass", "2")
       val mTarget = HttpHeaders.RawHeader("X-WindowsPhone-Target", "toast")
