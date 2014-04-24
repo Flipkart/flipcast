@@ -17,7 +17,7 @@ trait PushConfigurationProtocol extends DefaultJsonProtocol with SprayJsonSuppor
 
   implicit val GcmConfigFormat = jsonFormat3(GcmConfig)
 
-  implicit val MpnsConfigFormat = jsonFormat1(MpnsConfig)
+  implicit val MpnsConfigFormat = jsonFormat3(MpnsConfig)
 
   implicit object PushConfigFormat extends RootJsonFormat[PushConfig] {
 
