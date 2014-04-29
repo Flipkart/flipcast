@@ -1,3 +1,10 @@
+# Why
+User engagement in mobile world is a tough nut to crack. To make intimate connections to users of your application you
+will have to resort to more direct and personal communication channels. A personally engaging channel plays a major role
+in creating a differentiating experience on the mobile application. Engaging users at mobile scale
+(way bigger than internet itself) is a challenge. FlipCast is a building block for creating a user engagement platform
+which keeps the users of the app come back for more!
+
 # Flipcast
 FlipCast is a scalable, multitenant, customizable push notification platform for mobile, devices & web.
 FlipCast is built on high performance, high throughput fault tolerant infrastructure components like
