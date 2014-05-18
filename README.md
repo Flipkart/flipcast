@@ -15,7 +15,7 @@ Support for MongoDB datasource is provided out-of-the-box.
 | Release | Date | Description |
 |:------------|:----------------|:------------|
 | Version 1.0    | April 2014      |   Initial OSS release |
-| Version 1.0.1    | May 2014      |   Upgrade to Spray 1.2 & Scala 2.11.0 |
+| Version 1.0.1    | May 2014      |   Upgrade to Spray 1.3 & Scala 2.11.0 |
 
 ## Changelog
 Changelog can be viewed in [CHANGELOG.md](https://github.com/Flipkart/flipcast/blob/master/CHANGELOG.md) file
