@@ -27,7 +27,7 @@ class ServiceRegistry (implicit val system: ActorSystem) {
    * @tparam T Actor or any of the subclasses of actor
    */
   def register[T <: Actor : ClassTag](name: String, instances: Int = 1) {
-    serviceCache.contains(name) match {
+    serviceCache.containsKey(name) match {
       case true => throw new IllegalArgumentException("Duplicate service registration")
       case false =>
         val aRef = instances match {
@@ -47,9 +47,9 @@ class ServiceRegistry (implicit val system: ActorSystem) {
    * @throws IllegalArgumentException when a invalid name is supplied
    */
   def actor(name: String) = {
-    serviceCache.contains(name) match {
+    serviceCache.containsKey(name) match {
       case true => serviceCache.get(name)
-      case false => throw new IllegalArgumentException("Invalid service! Service not registered")
+      case false => throw new IllegalArgumentException("Invalid service! Service not registered: " +name)
     }
   }
 }

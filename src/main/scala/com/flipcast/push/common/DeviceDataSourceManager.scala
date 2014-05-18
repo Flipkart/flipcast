@@ -22,7 +22,7 @@ object DeviceDataSourceManager {
    * @param dataSource DeviceDataSource instance
    */
   def register(configName: String, dataSource: DeviceDataSource) {
-    providerCache.contains(configName) match {
+    providerCache.containsKey(configName) match {
       case true =>
         new IllegalArgumentException("Duplicate config name")
       case false =>
@@ -37,7 +37,7 @@ object DeviceDataSourceManager {
    * @return DeviceDataSource instance
    */
   def dataSource(configName: String) : DeviceDataSource = {
-    providerCache.contains(configName) match {
+    providerCache.containsKey(configName) match {
       case true => providerCache.get(configName)
       case false => providerCache.get("default")
     }

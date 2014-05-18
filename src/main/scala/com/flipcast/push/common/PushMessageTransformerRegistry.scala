@@ -16,7 +16,7 @@ object PushMessageTransformerRegistry {
   private val transformers = new ConcurrentHashMap[String, PushMessageTransformer]()
 
   def register(configName: String, transformer: PushMessageTransformer) {
-    transformers.contains(configName) match {
+    transformers.containsKey(configName) match {
       case true =>
         log.warn("Transformer already registered for: " +configName)
       case false =>
@@ -26,7 +26,7 @@ object PushMessageTransformerRegistry {
   }
 
   def transformer(configName: String) : PushMessageTransformer = {
-    transformers.contains(configName) match {
+    transformers.containsKey(configName) match {
       case true => transformers.get(configName)
       case false =>
         log.warn("No transformers registered for config: " +configName +". Returning default transformer")

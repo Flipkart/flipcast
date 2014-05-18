@@ -53,11 +53,11 @@ object ConnectionHelper {
   val log = Logger("RabbitMQConnectionHelper")
 
   /**
-   * Create a connection so that we can create a consumer / producer
+   * Initialize a connection so that we can create a consumer / producer
    * @param system actor system that needs to be used to create the connection
    * @return A RabbitMQ connection
    */
-  private def createConnection() (implicit system: ActorSystem) = {
+  def init() (implicit system: ActorSystem) = {
     if(rmqConnection == null) {
       val connectionFactory =  new ConnectionFactory()
       connectionFactory.setClientProperties(clientProps.asJava)
@@ -85,8 +85,7 @@ object ConnectionHelper {
       exchangeType = "direct", durable = true, autodelete = false, clientProps)
     val cParams = Option(ChannelParameters(qos))
     val queueParams = QueueParameters(queueName, passive = false, durable = true, exclusive = false, autodelete = false, clientProps)
-    val connection = createConnection()
-    val consumer = ConnectionOwner.createChildActor(connection, Consumer.props(listener, exchangeParams,queueParams, queueName,
+    val consumer = ConnectionOwner.createChildActor(rmqConnection, Consumer.props(listener, exchangeParams,queueParams, queueName,
       cParams, autoack = false))
     Amqp.waitForConnection(system, consumer).await()
     consumer ! DeclareExchange(exchangeParams)
@@ -109,8 +108,7 @@ object ConnectionHelper {
       exchangeType = "direct", durable = true, autodelete = false, clientProps)
     val queueParams = QueueParameters(queueName, passive = false, durable = true, exclusive = false, autodelete = false,
       clientProps)
-    val connection = createConnection()
-    val producer = ConnectionOwner.createChildActor(connection, ChannelOwner.props(channelParams = channelParameters))
+    val producer = ConnectionOwner.createChildActor(rmqConnection, ChannelOwner.props(channelParams = channelParameters))
     Amqp.waitForConnection(system, producer).await()
     producer ! DeclareExchange(exchangeParams)
     producer ! DeclareQueue(queueParams)

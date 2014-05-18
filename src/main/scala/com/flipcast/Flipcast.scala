@@ -22,10 +22,8 @@ import com.flipcast.push.apns.service.FlipcastApnsRequestConsumer
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 import ExecutionContext.Implicits.global
-import akka.routing.Broadcast
 import com.flipcast.push.mpns.service.FlipcastMpnsRequestConsumer
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.TimeUnit
 import com.codahale.metrics.{Slf4jReporter, MetricFilter}
 import org.slf4j.LoggerFactory
 import com.flipcast.common.FlipCastMetricsRegistry
@@ -98,12 +96,6 @@ object Flipcast extends App {
    */
   IO(Http) ! Http.Bind(router, hostname, port = serverConfig.port)
 
-  /**
-   * Register message consumers
-   */
-  registerAllMessageConsumers()
-
-
   def registerServices() {
     //Ping Service
     serviceRegistry.register[PingHttpServiceWorker]("pingServiceWorker")
@@ -168,8 +160,12 @@ object Flipcast extends App {
 
 
   def boot() {
+    //Initialize RMQ connection
+    rmq.ConnectionHelper.init()
+
     //Register all the services
     registerServices()
+
 
     //Initialize database connection
     ConnectionHelper.init()
@@ -179,6 +175,12 @@ object Flipcast extends App {
 
     //Register datasource
     registerDataSources()
+
+    /**
+     * Register message consumers
+     */
+    registerAllMessageConsumers()
+
 
     //Set service instance to active state
     serviceState = ServiceState.IN_ROTATION

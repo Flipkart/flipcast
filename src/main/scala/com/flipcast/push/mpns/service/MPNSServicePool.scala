@@ -26,7 +26,7 @@ object MPNSServicePool {
 
   def service(configName: String, host: String) = {
     val key = MpnsServiceKey(configName, host)
-    serviceCache.contains(key) match {
+    serviceCache.containsKey(key) match {
       case true =>
         serviceCache.get(key)
       case false =>
