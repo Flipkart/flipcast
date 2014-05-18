@@ -68,14 +68,6 @@ jarName in assembly := "flipcast-service.jar"
 
 logLevel in assembly := Level.Warn
 
-excludedJars in assembly <<= (fullClasspath in assembly) map { cp =>
-  cp filter {
-    elem => {
-      (elem.data.getName == "servlet-api-2.5-20081211.jar") || (elem.data.getName == "slf4j-log4j12-1.7.2.jar") || (elem.data.getName == "netty-3.5.9.Final.jar") || (elem.data.getName == "jcl-over-slf4j-1.6.1.jar")
-    }
-  }
-}
-
 seq(Revolver.settings: _*)
 
 seq(SbtStartScript.startScriptForJarSettings: _*)
