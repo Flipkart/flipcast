@@ -167,14 +167,14 @@ object MongoDeviceDataSource extends DeviceDataSource {
     query += "configName" -> config
     val expr = query.result() ++ ("sync_version" $gt from)
     val total = collection.count(query.result())
-    val byPlatform = collection.aggregate(MongoDBObject("$match" -> expr),
-      MongoDBObject("$group" -> MongoDBObject("_id" -> "$osName", "counts" -> MongoDBObject("$sum" -> 1))))
-    val byBrand = collection.aggregate(MongoDBObject("$match" -> expr),
-      MongoDBObject("$group" -> MongoDBObject("_id" -> "$brand", "counts" -> MongoDBObject("$sum" -> 1))))
-    val byModel = collection.aggregate(MongoDBObject("$match" -> expr),
-      MongoDBObject("$group" -> MongoDBObject("_id" -> "$model", "counts" -> MongoDBObject("$sum" -> 1))))
-    val byVersion = collection.aggregate(MongoDBObject("$match" -> expr),
-      MongoDBObject("$group" -> MongoDBObject("_id" -> "$appVersion", "counts" -> MongoDBObject("$sum" -> 1))))
+    val byPlatform = collection.aggregate(List(MongoDBObject("$match" -> expr),
+      MongoDBObject("$group" -> MongoDBObject("_id" -> "$osName", "counts" -> MongoDBObject("$sum" -> 1)))).asJava)
+    val byBrand = collection.aggregate(List(MongoDBObject("$match" -> expr),
+      MongoDBObject("$group" -> MongoDBObject("_id" -> "$brand", "counts" -> MongoDBObject("$sum" -> 1)))).asJava)
+    val byModel = collection.aggregate(List(MongoDBObject("$match" -> expr),
+      MongoDBObject("$group" -> MongoDBObject("_id" -> "$model", "counts" -> MongoDBObject("$sum" -> 1)))).asJava)
+    val byVersion = collection.aggregate(List(MongoDBObject("$match" -> expr),
+      MongoDBObject("$group" -> MongoDBObject("_id" -> "$appVersion", "counts" -> MongoDBObject("$sum" -> 1)))).asJava)
     val resPlatform = byPlatform.results().asScala.map( d => {
       d.getAsOrElse[String]("_id", "Unknown") -> d.getAsOrElse[BigDecimal]("counts", 0).toLong
     })
@@ -251,7 +251,7 @@ object MongoDeviceDataSource extends DeviceDataSource {
     ConnectionHelper.createIndex(collectionName, Seq(("model", 1)))
     ConnectionHelper.createIndex(collectionName, Seq(("appName", 1)))
     ConnectionHelper.createIndex(collectionName, Seq(("appVersion", 1)))
-    ConnectionHelper.collection("push_message_history").ensureIndex(MongoDBObject("sentDate" -> 0, "expireAfterSeconds" -> 604800))
+    ConnectionHelper.collection("push_message_history").createIndex(MongoDBObject("sentDate" -> 0, "expireAfterSeconds" -> 604800))
     ConnectionHelper.createIndex(collectionName, Seq(("appName", 1), ("sentDate", 0), ("brand", 1)))
     ConnectionHelper.createIndex(collectionName, Seq(("osName", 1), ("sentDate", 0), ("brand", 1)))
     ConnectionHelper.createIndex(collectionName, Seq(("osName", 1), ("osVersion", 1), ("sentDate", 0), ("brand", 1)))

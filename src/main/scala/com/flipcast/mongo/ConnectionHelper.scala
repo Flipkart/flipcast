@@ -15,7 +15,7 @@ import com.flipcast.Flipcast
  */
 object ConnectionHelper {
 
-  val log = Logger(this.getClass.getSimpleName)
+  val log = Logger(this.getClass().getSimpleName)
 
   var dbClient: MongoClient = null
 
@@ -39,7 +39,10 @@ object ConnectionHelper {
         socketTimeout = config.socketTimeout,
         writeConcern = WriteConcern.Safe,
         readPreference = ReadPreference.SecondaryPreferred,
-        threadsAllowedToBlockForConnectionMultiplier = Runtime.getRuntime.availableProcessors() / 2
+        threadsAllowedToBlockForConnectionMultiplier = {
+          val nrOfThreads = Runtime.getRuntime.availableProcessors() / 2
+          if(nrOfThreads >= 1) nrOfThreads else 1
+        }
       )
       val servers = config.hosts.map( h => {
         val tokens = h.split(":")
@@ -48,8 +51,10 @@ object ConnectionHelper {
       val credentials = config.user match {
         case Some(user) =>
           config.password match {
-            case Some(pass) => MongoCredential(user, config.database, pass.toCharArray)
-            case _ => MongoCredential(user, config.database, "".toCharArray)
+            case Some(pass) =>
+              MongoCredential.createMongoCRCredential(user, config.database, pass.toCharArray)
+            case _ =>
+              MongoCredential.createMongoCRCredential(user, config.database, "".toCharArray)
           }
         case _ => None
       }
@@ -76,7 +81,7 @@ object ConnectionHelper {
   }
 
   private def createDatabase() (implicit config: MongoConfig) {
-    dbClient.dbNames.count( n => n == config.database) match {
+    dbClient.dbNames().count( n => n == config.database) match {
       case 0 =>
         dbClient.getDB(config.database)
         log.info("Database created: " +config.database)
@@ -107,7 +112,7 @@ object ConnectionHelper {
         Flipcast.mongoConfig.sharding match {
           case true =>
             val shardKey = MongoDBObject("_id" -> "hashed")
-            collection.ensureIndex(shardKey)
+            collection.createIndex(shardKey)
             val result = dbClient.getDB("admin").command(MongoDBObject("shardCollection" -> name, "key" -> shardKey))
             log.info("Sharding sys_relations_metadata collection result: " +result)
           case _ => None
@@ -127,7 +132,8 @@ object ConnectionHelper {
     val collection = dbInstance.getCollection(collectionName)
     val indexKeys = MongoDBObject.newBuilder
     keys.foreach( k => indexKeys += k._1 -> k._2)
-    collection.ensureIndex(indexKeys.result(), MongoDBObject("background" -> true, "name" -> idxName, "unique" -> false))
+    collection.createIndex(indexKeys.result(), MongoDBObject("background" -> true, "name" -> idxName,
+      "unique" -> false))
   }
 
 }
