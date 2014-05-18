@@ -9,7 +9,7 @@ name          := "flipcast"
 
 version       := "0.1"
 
-scalaVersion  := "2.10.2"
+scalaVersion  := "2.11.0"
 
 scalacOptions := Seq(
   "-encoding", "UTF-8",
@@ -30,15 +30,15 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "io.spray"                        %   "spray-can"                     % "1.2.0",
-  "io.spray"                        %   "spray-routing"                 % "1.2.0",
-  "io.spray"                        %   "spray-caching"                 % "1.2.0",
-  "io.spray"                        %   "spray-testkit"                 % "1.2.0"                  % "test",
-  "io.spray"                        %   "spray-client"                  % "1.2.0",
-  "io.spray"                        %   "spray-json_2.10"               % "1.2.5",
-  "com.typesafe.akka"               %%  "akka-actor"                    % "2.2.4",
-  "com.typesafe.akka"               %%  "akka-slf4j"                    % "2.2.4",
-  "com.typesafe.akka"               %%  "akka-testkit"                  % "2.2.4"                  % "test",
+  "io.spray"                        %%  "spray-can"                     % "1.3.1-20140423",
+  "io.spray"                        %%  "spray-routing"                 % "1.3.1-20140423",
+  "io.spray"                        %%  "spray-caching"                 % "1.3.1-20140423",
+  "io.spray"                        %%  "spray-testkit"                 % "1.3.1-20140423"                  % "test",
+  "io.spray"                        %%  "spray-client"                  % "1.3.1-20140423",
+  "io.spray"                        %%  "spray-json"                    % "1.2.6",
+  "com.typesafe.akka"               %%  "akka-actor"                    % "2.3.2",
+  "com.typesafe.akka"               %%  "akka-slf4j"                    % "2.3.2",
+  "com.typesafe.akka"               %%  "akka-testkit"                  % "2.3.2"                           % "test",
   "ch.qos.logback"                  %   "logback-classic"               % "1.0.9",
   "com.fasterxml.uuid"              %   "java-uuid-generator"           % "3.1.3",
   "com.codahale.metrics"            %   "metrics-logback"               % "3.0.1",
@@ -48,12 +48,12 @@ libraryDependencies ++= Seq(
   "commons-validator"               %   "commons-validator"             % "1.4.0",
   "commons-codec"                   %   "commons-codec"                 % "1.5",
   "com.google.guava"                %   "guava"                         % "15.0",
-  "com.fasterxml.jackson.module"    %   "jackson-module-scala_2.10"     % "2.2.3",
   "com.notnoop.apns"                %   "apns"                          % "0.2.3",
-  "org.mongodb"                     %   "casbah_2.10"                   % "2.6.5",
-  "com.github.sstone"               %   "amqp-client_2.10"              % "1.3-ML4",
+  "org.mongodb"                     %%  "casbah"                        % "2.7.1",
+  "com.github.sstone"               %%  "amqp-client"                   % "1.4",
   "commons-io"                      %   "commons-io"                    % "2.4",
-  "org.specs2"                      %%  "specs2"                        % "1.13"                    % "test"
+  "com.google.code.findbugs"        %   "jsr305"                        % "2.0.3",
+  "org.specs2"                      %%  "specs2"                        % "2.3.11"                        % "test"
 )
 
 assemblySettings

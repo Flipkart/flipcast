@@ -1,13 +1,10 @@
 package com.flipcast.rmq
 
-import scala.collection.mutable
-import com.github.sstone.amqp.{Amqp, RabbitMQConnection}
+import com.github.sstone.amqp.{ChannelOwner, Consumer, ConnectionOwner, Amqp}
 import java.util.concurrent.atomic.AtomicInteger
 import com.flipcast.Flipcast
-import akka.actor.{ActorRef, ActorSystem}
-import com.rabbitmq.client.{AMQP, Address}
-import scala.concurrent.duration.Duration
-import java.util.concurrent.TimeUnit._
+import akka.actor.{PoisonPill, ActorRef, ActorSystem}
+import com.rabbitmq.client.{ConnectionFactory, AMQP, Address}
 import com.github.sstone.amqp.Amqp._
 import akka.event.slf4j.Logger
 import com.github.sstone.amqp.Amqp.DeclareQueue
@@ -16,6 +13,8 @@ import com.github.sstone.amqp.Amqp.QueueParameters
 import com.github.sstone.amqp.Amqp.DeclareExchange
 import com.github.sstone.amqp.Amqp.QueueBind
 import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
+import scala.concurrent.duration._
+import collection.JavaConverters._
 
 /**
  * RabbitMQ connection helper
@@ -37,14 +36,14 @@ object ConnectionHelper {
 
 
   /**
-   * Keep track of open connections
+   * RMQ Connection
    */
-  val connections: mutable.HashMap[String, RabbitMQConnection] = new mutable.HashMap[String, RabbitMQConnection]() with mutable.SynchronizedMap[String, RabbitMQConnection]
+  var rmqConnection: ActorRef = null
 
   /**
    * Client properties that we need to set (in case of rmq cluster)
    */
-  val clientProps = Map("x-ha-policy" -> "all")
+  val clientProps = Map[String, AnyRef]("ha-mode" -> "all", "x-ha-policy" -> "all", "x-priority" -> new Integer(10))
 
   /**
    * Keep a count of connection
@@ -59,23 +58,18 @@ object ConnectionHelper {
    * @return A RabbitMQ connection
    */
   private def createConnection() (implicit system: ActorSystem) = {
-    val name = "flipcast-%s".format(connectionCount.incrementAndGet())
-    val reconnectDelay = Duration(Flipcast.rmqConfig.reconnectDelay, MILLISECONDS)
-    val executor = Option(executorService)
-    val addresses = Flipcast.rmqConfig.hosts.map( h => {
-      val tokens = h.split(":")
-      new Address(tokens(0), tokens(1).toInt)
-    }).toArray
-    val conn = new RabbitMQConnection(name = name,
-      vhost = Flipcast.rmqConfig.vhost,
-      user = Flipcast.rmqConfig.user,
-      password = Flipcast.rmqConfig.pass,
-      reconnectionDelay = reconnectDelay,
-      executor = executor,
-      addresses = Option(addresses))
-    conn.waitForConnection.await()
-    connections.put(name, conn)
-    conn
+    if(rmqConnection == null) {
+      val connectionFactory =  new ConnectionFactory()
+      connectionFactory.setClientProperties(clientProps.asJava)
+      connectionFactory.setAutomaticRecoveryEnabled(true)
+      connectionFactory.setNetworkRecoveryInterval(10)
+      val addresses = Flipcast.rmqConfig.hosts.map( h => {
+        val tokens = h.split(":")
+        new Address(tokens(0), tokens(1).toInt)
+      }).toArray
+      rmqConnection = system.actorOf(ConnectionOwner.props(connectionFactory, 1 second, addresses = Option(addresses), executor = Option(executorService)))
+    }
+    rmqConnection
   }
 
   /**
@@ -87,14 +81,13 @@ object ConnectionHelper {
    * @return ActorRef of consumer
    */
   def createConsumer(queueName: String, exchange: String, listener: ActorRef, qos: Int) (implicit system: ActorSystem) = {
-    val channelParameters = Option(ChannelParameters(qos))
     val exchangeParams = ExchangeParameters(name = exchange, passive = false,
       exchangeType = "direct", durable = true, autodelete = false, clientProps)
+    val cParams = Option(ChannelParameters(qos))
+    val queueParams = QueueParameters(queueName, passive = false, durable = true, exclusive = false, autodelete = false, clientProps)
     val connection = createConnection()
-    val queueParams = QueueParameters(queueName, passive = false, durable = true, exclusive = false,
-      autodelete = false, clientProps)
-    val consumer = connection.createConsumer(exchangeParams, queueParams, queueName, listener,
-      channelParams = channelParameters, autoack = false)
+    val consumer = ConnectionOwner.createChildActor(connection, Consumer.props(listener, exchangeParams,queueParams, queueName,
+      cParams, autoack = false))
     Amqp.waitForConnection(system, consumer).await()
     consumer ! DeclareExchange(exchangeParams)
     consumer ! DeclareQueue(queueParams)
@@ -114,10 +107,10 @@ object ConnectionHelper {
     val channelParameters = Option(ChannelParameters(1))
     val exchangeParams = ExchangeParameters(name = exchange, passive = false,
       exchangeType = "direct", durable = true, autodelete = false, clientProps)
-    val connection = createConnection()
     val queueParams = QueueParameters(queueName, passive = false, durable = true, exclusive = false, autodelete = false,
       clientProps)
-    val producer = connection.createChannelOwner(channelParameters)
+    val connection = createConnection()
+    val producer = ConnectionOwner.createChildActor(connection, ChannelOwner.props(channelParams = channelParameters))
     Amqp.waitForConnection(system, producer).await()
     producer ! DeclareExchange(exchangeParams)
     producer ! DeclareQueue(queueParams)
@@ -129,10 +122,9 @@ object ConnectionHelper {
    * Close all connections
    */
   def stop() {
-    connections.foreach( c => {
-      log.info("Closing connection: " +c._1)
-      c._2.stop
-    })
+    if(rmqConnection != null) {
+      rmqConnection ! PoisonPill
+    }
   }
 
 }

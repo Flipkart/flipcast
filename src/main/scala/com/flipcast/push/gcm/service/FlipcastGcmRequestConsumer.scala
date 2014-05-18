@@ -99,12 +99,10 @@ class FlipcastGcmRequestConsumer extends FlipcastRequestConsumer with FlipcastPu
             case true => None
             case false =>
               gcmResponse.results.foreach( reg => {
-                try {
-                  reg.registration_id match {
-                    case Some(newId) =>
-                      Flipcast.serviceRegistry.actor("deviceIdAutoUpdateManager") ! DeviceIdAutoUpdateRequest(request.configName, request.registration_ids(idx), newId)
-                    case _ => None
-                  }
+                reg.registration_id match {
+                  case Some(newId) =>
+                    Flipcast.serviceRegistry.actor("deviceIdAutoUpdateManager") ! DeviceIdAutoUpdateRequest(request.configName, request.registration_ids(idx), newId)
+                  case _ => None
                 }
                 idx = idx + 1
               })

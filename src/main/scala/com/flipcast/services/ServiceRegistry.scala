@@ -1,9 +1,9 @@
 package com.flipcast.services
 
-import collection.mutable
 import akka.actor.{Props, Actor, ActorSystem, ActorRef}
 import scala.reflect.ClassTag
-import akka.routing.RoundRobinRouter
+import akka.routing.RoundRobinPool
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Service registry for keeping all the service worker actors
@@ -18,7 +18,7 @@ class ServiceRegistry (implicit val system: ActorSystem) {
   /**
    * Map of all registered actors
    */
-  private val serviceCache = new mutable.HashMap[String, ActorRef]() with mutable.SynchronizedMap[String, ActorRef]
+  private val serviceCache = new ConcurrentHashMap[String, ActorRef]()
 
   /**
    * Register a actor into the registry
@@ -34,7 +34,7 @@ class ServiceRegistry (implicit val system: ActorSystem) {
           case 1 =>
             system.actorOf(Props[T], name)
           case _ =>
-            system.actorOf(Props[T].withRouter(RoundRobinRouter(nrOfInstances = instances)), name)
+            system.actorOf(Props[T].withRouter(RoundRobinPool(nrOfInstances = instances)), name)
         }
         serviceCache.put(name, aRef)
     }
@@ -48,7 +48,7 @@ class ServiceRegistry (implicit val system: ActorSystem) {
    */
   def actor(name: String) = {
     serviceCache.contains(name) match {
-      case true => serviceCache(name)
+      case true => serviceCache.get(name)
       case false => throw new IllegalArgumentException("Invalid service! Service not registered")
     }
   }

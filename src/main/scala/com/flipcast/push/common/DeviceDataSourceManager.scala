@@ -1,6 +1,7 @@
 package com.flipcast.push.common
 
-import scala.collection.mutable
+import java.util.concurrent.ConcurrentHashMap
+
 
 /**
  * Device data source manager per config
@@ -12,8 +13,7 @@ object DeviceDataSourceManager {
   /**
    * Map of all registered data sources
    */
-  private val providerCache = new mutable.HashMap[String, DeviceDataSource]()
-    with mutable.SynchronizedMap[String, DeviceDataSource]
+  private val providerCache = new ConcurrentHashMap[String, DeviceDataSource]()
 
 
   /**
@@ -38,8 +38,8 @@ object DeviceDataSourceManager {
    */
   def dataSource(configName: String) : DeviceDataSource = {
     providerCache.contains(configName) match {
-      case true => providerCache(configName)
-      case false => providerCache("default")
+      case true => providerCache.get(configName)
+      case false => providerCache.get("default")
     }
   }
 }

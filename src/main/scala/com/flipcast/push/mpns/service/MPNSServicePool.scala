@@ -2,12 +2,12 @@ package com.flipcast.push.mpns.service
 
 import com.flipcast.Flipcast
 import spray.can.Http
-import scala.collection.mutable
 import com.flipcast.push.config.MpnsConfig
 import spray.io.ClientSSLEngineProvider
 import java.security.KeyStore
 import java.io.FileInputStream
 import javax.net.ssl.{SSLContext, KeyManagerFactory}
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Key for service pool
@@ -22,18 +22,17 @@ case class MpnsServiceKey(configName: String, host: String)
  */
 object MPNSServicePool {
 
-  private val serviceCache = new mutable.HashMap[MpnsServiceKey, Http.Connect]()
-    with mutable.SynchronizedMap[MpnsServiceKey, Http.Connect]
+  private val serviceCache = new ConcurrentHashMap[MpnsServiceKey, Http.Connect]()
 
   def service(configName: String, host: String) = {
     val key = MpnsServiceKey(configName, host)
     serviceCache.contains(key) match {
       case true =>
-        serviceCache(key)
+        serviceCache.get(key)
       case false =>
         val client = createClient(configName, host)
-        serviceCache += key -> client
-        serviceCache(key)
+        serviceCache.put(key,client)
+        serviceCache.get(key)
     }
   }
 

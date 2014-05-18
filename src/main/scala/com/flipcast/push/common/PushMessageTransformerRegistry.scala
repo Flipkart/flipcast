@@ -1,8 +1,8 @@
 package com.flipcast.push.common
 
-import scala.collection.mutable
 import akka.event.slf4j.Logger
 import com.flipcast.push.example.DefaultPushMessageTransformer
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * A registry for all message transformations per config (Multi config support)
@@ -13,8 +13,7 @@ object PushMessageTransformerRegistry {
 
   val log = Logger("PushMessageTransformerRegistry")
 
-  private val transformers = new mutable.HashMap[String, PushMessageTransformer]()
-    with mutable.SynchronizedMap[String, PushMessageTransformer]
+  private val transformers = new ConcurrentHashMap[String, PushMessageTransformer]()
 
   def register(configName: String, transformer: PushMessageTransformer) {
     transformers.contains(configName) match {
@@ -22,13 +21,13 @@ object PushMessageTransformerRegistry {
         log.warn("Transformer already registered for: " +configName)
       case false =>
         log.info("Registering transformer for: " +configName)
-        transformers += configName -> transformer
+        transformers.put(configName, transformer)
     }
   }
 
   def transformer(configName: String) : PushMessageTransformer = {
     transformers.contains(configName) match {
-      case true => transformers(configName)
+      case true => transformers.get(configName)
       case false =>
         log.warn("No transformers registered for config: " +configName +". Returning default transformer")
         DefaultPushMessageTransformer
