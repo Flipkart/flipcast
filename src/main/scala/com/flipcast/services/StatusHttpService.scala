@@ -69,13 +69,12 @@ class StatusHttpServiceWorker extends BaseHttpServiceActor {
             case true =>
               Flipcast.serviceState = ServiceState.IN_ROTATION
               result = true
+              lock.unlock()
             case false => None
           }
         } catch {
           case ex: Exception =>
             log.warn("Failed to acquire status! Concurrent request error")
-        } finally {
-          lock.unlock()
         }
         InRotationResponse(result)
       case request: OutOfRotationServiceRequest =>
@@ -85,6 +84,7 @@ class StatusHttpServiceWorker extends BaseHttpServiceActor {
             case true =>
               Flipcast.serviceState = ServiceState.OUT_OF_ROTATION
               result = true
+              lock.unlock()
             case false => None
           }
         } catch {
