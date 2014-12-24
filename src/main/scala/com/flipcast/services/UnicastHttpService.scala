@@ -1,23 +1,15 @@
 package com.flipcast.services
 
-import com.flipcast.common.{BaseHttpServiceActor, BaseHttpService}
-import com.flipcast.model.responses._
-import com.flipcast.push.common.{PushMessageTransformerRegistry, DeviceDataSourceManager}
-import com.flipcast.push.model.{PushMessage, DeviceOperatingSystemType}
-import akka.actor.ActorRef
-import com.flipcast.rmq.ConnectionHelper
+import akka.contrib.pattern.DistributedPubSubExtension
+import akka.contrib.pattern.DistributedPubSubMediator.Send
+import com.flipcast.common.{BaseHttpService, BaseHttpServiceActor}
+import com.flipcast.model.requests.{ServiceRequest, UnicastRequest}
+import com.flipcast.model.responses.{ServiceBadRequestResponse, ServiceNotFoundResponse, ServiceSuccessResponse, ServiceUnhandledResponse, _}
+import com.flipcast.push.common.{DeviceDataSourceManager, PushMessageTransformerRegistry}
 import com.flipcast.push.config.QueueConfigurationManager
-import scala.collection._
-import com.flipcast.model.responses.ServiceUnhandledResponse
-import com.github.sstone.amqp.Amqp.Publish
-import com.flipcast.model.responses.ServiceNotFoundResponse
-import com.flipcast.model.responses.ServiceSuccessResponse
-import com.flipcast.model.requests.ServiceRequest
-import com.flipcast.model.responses.ServiceBadRequestResponse
-import com.flipcast.model.requests.UnicastRequest
-import scala.Some
-import com.flipcast.push.protocol.{PushMessageProtocol, FlipcastPushProtocol}
 import com.flipcast.push.model.requests.FlipcastPushRequest
+import com.flipcast.push.model.{DeviceOperatingSystemType, PushMessage}
+import com.flipcast.push.protocol.{FlipcastPushProtocol, PushMessageProtocol}
 import spray.json._
 
 /**
@@ -60,24 +52,8 @@ class UnicastHttpService (implicit val context: akka.actor.ActorRefFactory,
 
 class UnicastHttpServiceWorker extends BaseHttpServiceActor with FlipcastPushProtocol {
 
-  val senderChannel = new mutable.HashMap[String, ActorRef]()
+  val mediator = DistributedPubSubExtension(context.system).mediator
 
-  val senderSidelineChannel = new mutable.HashMap[String, ActorRef]()
-
-  override def preStart() {
-    if(senderChannel.size == 0) {
-      QueueConfigurationManager.configs().foreach(c => {
-        val config = QueueConfigurationManager.config(c)
-        senderChannel += c -> ConnectionHelper.createProducer(config.inputQueueName, config.inputExchange)
-      })
-    }
-    if(senderSidelineChannel.size == 0) {
-      QueueConfigurationManager.configs().foreach(c => {
-        val config = QueueConfigurationManager.config(c)
-        senderSidelineChannel += c -> ConnectionHelper.createProducer(config.sidelineQueueName, config.sidelineExchange)
-      })
-    }
-  }
 
   def process[T](request: T) = {
     request match {
@@ -90,26 +66,17 @@ class UnicastHttpServiceWorker extends BaseHttpServiceActor with FlipcastPushPro
               case DeviceOperatingSystemType.ANDROID =>
                 val framedMessage = FlipcastPushRequest(request.configName, List(device.cloudMessagingId),
                   messagePayload.getPayload(DeviceOperatingSystemType.ANDROID).getOrElse("{}"), None, None)
-                senderChannel("gcm") ! Publish(QueueConfigurationManager.config("gcm").inputExchange,
-                  QueueConfigurationManager.config("gcm").inputQueueName, framedMessage.toJson.compactPrint.getBytes,
-                  ConnectionHelper.messageProperties, mandatory = false,
-                  immediate = false)
+                mediator ! Send(QueueConfigurationManager.config("gcm").inputQueueName, framedMessage, localAffinity = false)
                 ServiceSuccessResponse[UnicastSuccessResponse](UnicastSuccessResponse(device.deviceId, device.osName.toString))
               case DeviceOperatingSystemType.iOS =>
                 val framedMessage = FlipcastPushRequest(request.configName, List(device.cloudMessagingId),
                   messagePayload.getPayload(DeviceOperatingSystemType.iOS).getOrElse("{}"), None, None)
-                senderChannel("apns") ! Publish(QueueConfigurationManager.config("apns").inputExchange,
-                  QueueConfigurationManager.config("apns").inputQueueName, framedMessage.toJson.compactPrint.getBytes,
-                  ConnectionHelper.messageProperties, mandatory = false,
-                  immediate = false)
+                mediator ! Send(QueueConfigurationManager.config("apns").inputQueueName, framedMessage, localAffinity = false)
                 ServiceSuccessResponse[UnicastSuccessResponse](UnicastSuccessResponse(device.deviceId, device.osName.toString))
               case DeviceOperatingSystemType.WindowsPhone =>
                 val framedMessage = FlipcastPushRequest(request.configName, List(device.cloudMessagingId),
                   messagePayload.getPayload(DeviceOperatingSystemType.WindowsPhone).getOrElse("{}"), None, None)
-                senderChannel("mpns") ! Publish(QueueConfigurationManager.config("mpns").inputExchange,
-                  QueueConfigurationManager.config("mpns").inputQueueName, framedMessage.toJson.compactPrint.getBytes,
-                  ConnectionHelper.messageProperties, mandatory = false,
-                  immediate = false)
+                mediator ! Send(QueueConfigurationManager.config("mpns").inputQueueName, framedMessage, localAffinity = false)
                 ServiceSuccessResponse[UnicastSuccessResponse](UnicastSuccessResponse(device.deviceId, device.osName.toString))
               case _ =>
                 ServiceBadRequestResponse("Invalid device type: " +device.osName.toString)

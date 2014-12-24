@@ -1,6 +1,6 @@
 package com.flipcast.push.common
 
-import com.flipcast.push.model.{PushHistoryData, DeviceData}
+import com.flipcast.push.model.{SidelinedMessage, PushHistoryData, DeviceData}
 import java.util.Date
 
 /**
@@ -31,5 +31,9 @@ trait DeviceDataSource {
   def recordHistory(config: String, key: String, message: String) : Boolean
 
   def pushHistory(config: String, from: Date) : PushHistoryData
+
+  def sidelineMessage(message: SidelinedMessage) : Boolean
+
+  def listSidelineMessage(config: String,filter : Map[String, Any], pageSize: Int, pageNo: Int) : List[SidelinedMessage]
 
 }

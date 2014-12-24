@@ -1,13 +1,14 @@
 package com.flipcast.push.mpns.service
 
-import com.flipcast.Flipcast
-import spray.can.Http
-import com.flipcast.push.config.MpnsConfig
-import spray.io.ClientSSLEngineProvider
-import java.security.KeyStore
 import java.io.FileInputStream
-import javax.net.ssl.{SSLContext, KeyManagerFactory}
+import java.security.KeyStore
 import java.util.concurrent.ConcurrentHashMap
+import javax.net.ssl.{KeyManagerFactory, SSLContext}
+
+import com.flipcast.Flipcast
+import com.flipcast.push.config.MpnsConfig
+import spray.can.Http
+import spray.io.ClientSSLEngineProvider
 
 /**
  * Key for service pool

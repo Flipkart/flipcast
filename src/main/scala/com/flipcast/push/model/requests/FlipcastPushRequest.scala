@@ -1,5 +1,9 @@
 package com.flipcast.push.model.requests
 
+
+@SerialVersionUID(1L)
+trait FlipcastRequest
+
 /**
  * Model class for push message request
  * @param configName Name of the configuration
@@ -10,4 +14,4 @@ case class FlipcastPushRequest(configName: String,
                                registration_ids: List[String],
                                data: String,
                                ttl: Option[Int],
-                               delayWhileIdle: Option[Boolean])
+                               delayWhileIdle: Option[Boolean]) extends FlipcastRequest

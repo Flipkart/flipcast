@@ -20,7 +20,7 @@ import com.flipcast.push.model.requests.{RecordPushHistoryRequest, FlipcastPushR
  *
  * @author Phaneesh Nagaraja
  */
-class FlipcastGcmRequestConsumer extends FlipcastRequestConsumer with FlipcastPushProtocol with GcmProtocol {
+class FlipcastGcmRequestConsumer extends FlipcastRequestConsumer[FlipcastPushRequest] with FlipcastPushProtocol with GcmProtocol {
 
   override def configType() = "gcm"
 
@@ -28,8 +28,7 @@ class FlipcastGcmRequestConsumer extends FlipcastRequestConsumer with FlipcastPu
 
   }
 
-  override def consume(message: String) =  {
-    val request = JsonParser(message).convertTo[FlipcastPushRequest]
+  override def consume(request: FlipcastPushRequest) =  {
     val service = GCMServicePool.service(request.configName)
     val config = Flipcast.pushConfigurationProvider.config(request.configName).gcm
     val delayWhileIdle = request.delayWhileIdle match {
@@ -56,37 +55,35 @@ class FlipcastGcmRequestConsumer extends FlipcastRequestConsumer with FlipcastPu
             gcmResponse.results.foreach(res => {
               res.error match {
                 case Some("MissingRegistration") =>
-                  log.warn("[GCM] Missing registration id: " + request.registration_ids(idx))
+                  log.warn("Missing registration id: " + request.registration_ids(idx))
                   //Housekeeping
                   Flipcast.serviceRegistry.actor("deviceHouseKeepingManager") ! DeviceHousekeepingRequest(request.configName, request.registration_ids(idx))
                 case Some("InvalidRegistration") =>
-                  log.warn("[GCM] Invalid registration: " + request.registration_ids(idx))
+                  log.warn("Invalid registration: " + request.registration_ids(idx))
                   //Housekeeping
                   Flipcast.serviceRegistry.actor("deviceHouseKeepingManager") ! DeviceHousekeepingRequest(request.configName, request.registration_ids(idx))
                 case Some("MismatchSenderId") =>
-                  log.warn("[GCM] Mismatch sender Id: " + request.registration_ids(idx))
+                  log.warn("Mismatch sender Id: " + request.registration_ids(idx))
                   //Housekeeping
                   Flipcast.serviceRegistry.actor("deviceHouseKeepingManager") ! DeviceHousekeepingRequest(request.configName, request.registration_ids(idx))
                 case Some("NotRegistered") =>
-                  log.warn("[GCM] Not registered: " + request.registration_ids(idx))
+                  log.warn("Not registered: " + request.registration_ids(idx))
                   //Housekeeping
                   Flipcast.serviceRegistry.actor("deviceHouseKeepingManager") ! DeviceHousekeepingRequest(request.configName, request.registration_ids(idx))
                 case Some("MessageTooBig") =>
-                  log.warn("[GCM] Message too big: " + request.registration_ids(idx))
+                  log.warn("Message too big: " + request.registration_ids(idx))
                 case Some("InvalidDataKey") =>
-                  log.warn("[GCM] Invalid data key: " + request.registration_ids(idx))
+                  log.warn("Invalid data key: " + request.registration_ids(idx))
                 case Some("InvalidTtl") =>
-                  log.warn("[GCM] Invalid TTL: " + request.registration_ids(idx))
+                  log.warn("Invalid TTL: " + request.registration_ids(idx))
                 case Some("InternalServerError") =>
                   failedIds += request.registration_ids(idx)
-                  log.warn("[GCM] Internal Server Error: " + request.registration_ids(idx))
-                  consume(message)
+                  log.warn("Internal Server Error: " + request.registration_ids(idx))
                 case Some("Unavailable") =>
                   failedIds += request.registration_ids(idx)
-                  log.warn("[GCM] Unavailable: " + request.registration_ids(idx))
-                  consume(message)
+                  log.warn("Unavailable: " + request.registration_ids(idx))
                 case Some("InvalidPackageName") =>
-                  log.warn("[GCM] Invalid Package Name: " + request.registration_ids(idx))
+                  log.warn("Invalid Package Name: " + request.registration_ids(idx))
                 case _ =>
                   log.warn("Unknown Error: " + request.registration_ids(idx))
                   failedIds += request.registration_ids(idx)
@@ -110,14 +107,27 @@ class FlipcastGcmRequestConsumer extends FlipcastRequestConsumer with FlipcastPu
             failedIds.isEmpty match {
               case true => None
               case false =>
-                resend(FlipcastPushRequest(request.configName, failedIds.toList, request.data, request.ttl, request.delayWhileIdle).toJson.compactPrint)
+                resend(FlipcastPushRequest(request.configName, failedIds.toList, request.data, request.ttl, request.delayWhileIdle))
             }
             //Record history for all successful devices
             request.registration_ids.diff(failedIds.toList).par.foreach( r => {
-              Flipcast.serviceRegistry.actor("pushMessageHistoryManager") ! RecordPushHistoryRequest(request.configName, r, message)
+              Flipcast.serviceRegistry.actor("pushMessageHistoryManager") ! RecordPushHistoryRequest[FlipcastPushRequest](request.configName, r, request)
             })
+      case StatusCodes.Unauthorized =>
+        log.warn("Unauthorized: " + request)
+      case StatusCodes.BadRequest =>
+        log.warn("Bad Request: " + request)
+      case StatusCodes.InternalServerError =>
+        log.warn("Internal Server Error: " + request)
+        resend(request)
+      case StatusCodes.ServiceUnavailable =>
+        log.warn("Service Unavailable: " + request)
+        resend(request)
+      case StatusCodes.GatewayTimeout =>
+        log.warn("Gateway Timeout: " + request)
+        resend(request)
       case _ =>
-        resend(message)
+        resend(request)
       }
     true
   }

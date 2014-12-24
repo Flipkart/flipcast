@@ -176,8 +176,8 @@ trait BaseHttpServiceActor extends Actor with ServiceProtocolSupport {
       case e: Throwable =>
           HttpResponse(status = status, entity = HttpEntity(ContentTypes.`text/plain(UTF-8)`, "Oops! Something went wrong!"))
     }
-    ctx.complete(httpResponse)
     AccessLogger.access(ctx, httpResponse)
+    ctx.complete(httpResponse)
   }
 
   /**

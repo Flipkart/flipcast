@@ -1,17 +1,16 @@
 package com.flipcast.services
 
+import akka.contrib.pattern.DistributedPubSubExtension
+import akka.contrib.pattern.DistributedPubSubMediator.{Send, Publish}
 import com.flipcast.common.{BaseHttpServiceActor, BaseHttpService}
 import com.flipcast.push.protocol.{FlipcastPushProtocol, PushMessageProtocol}
 import com.flipcast.push.model.PushMessage
 import com.flipcast.model.requests.{BulkMessageRequest, BroadcastRequest, ServiceRequest}
 import com.flipcast.model.responses.{ServiceUnhandledResponse, MulticastSuccessResponse, ServiceSuccessResponse, ServiceBadRequestResponse}
 import com.flipcast.protocol.BulkMessageRequestProtocol
-import akka.actor.ActorRef
 import com.flipcast.push.config.QueueConfigurationManager
-import com.flipcast.rmq.ConnectionHelper
 import com.flipcast.push.common.DeviceDataSourceManager
 import com.flipcast.Flipcast
-import com.github.sstone.amqp.Amqp.Publish
 import spray.json._
 
 /**
@@ -48,19 +47,7 @@ class BroadcastHttpService (implicit val context: akka.actor.ActorRefFactory,
 
 class BroadcastHttpServiceWorker extends BaseHttpServiceActor with FlipcastPushProtocol with BulkMessageRequestProtocol {
 
-  var senderChannel : ActorRef = null
-
-  var senderSidelineChannel: ActorRef = null
-
-  override def preStart() {
-    val config = QueueConfigurationManager.bulkConfig()
-    if(senderChannel == null) {
-      senderChannel = ConnectionHelper.createProducer(config.inputQueueName, config.inputExchange)
-    }
-    if(senderSidelineChannel == null) {
-      senderSidelineChannel = ConnectionHelper.createProducer(config.sidelineQueueName, config.sidelineExchange)
-    }
-  }
+  val mediator = DistributedPubSubExtension(context.system).mediator
 
   def process[T](request: T) = {
     request match {
@@ -75,9 +62,7 @@ class BroadcastHttpServiceWorker extends BaseHttpServiceActor with FlipcastPushP
         var limit = 1
         List.range[Long](0, batches).foreach( batch => {
           val split = BulkMessageRequest(request.configName, Map.empty, request.message, batch.toInt, limit * batchSize)
-          senderChannel !Publish(config.inputExchange, config.inputQueueName, split.toJson.compactPrint.getBytes,
-            ConnectionHelper.messageProperties, mandatory = false,
-            immediate = false)
+          mediator ! Send(config.inputQueueName, split, localAffinity = false)
           limit += 1
         })
         ServiceSuccessResponse[MulticastSuccessResponse](MulticastSuccessResponse(deviceCount, batches))

@@ -1,88 +1,85 @@
 package com.flipcast.push.common
 
-import akka.actor.{ActorSystem, ActorRef, Actor}
-import akka.util.Timeout
-import scala.concurrent.duration.Duration
+import java.util.{Date, UUID}
 import java.util.concurrent.TimeUnit._
+
+import akka.actor.{Actor, ActorSystem}
+import akka.contrib.pattern.DistributedPubSubExtension
+import akka.contrib.pattern.DistributedPubSubMediator._
 import akka.event.slf4j.Logger
-import com.github.sstone.amqp.Amqp.{Publish, Reject, Ack, Delivery}
-import com.flipcast.rmq.ConnectionHelper
+import akka.util.Timeout
 import com.flipcast.Flipcast
 import com.flipcast.push.config.QueueConfigurationManager
+import com.flipcast.push.model.SidelinedMessage
+import com.flipcast.push.model.requests.{FlipcastPushRequest, FlipcastRequest}
+import com.flipcast.push.protocol.FlipcastPushProtocol
+import spray.json._
+import scala.concurrent.duration.Duration
+import scala.reflect.{ClassTag, classTag}
 
 /**
  * A simple message consumer actor for consuming RMQ messages
  *
  * @author Phaneesh Nagaraja
  */
-trait  FlipcastRequestConsumer extends Actor {
+abstract class  FlipcastRequestConsumer[T <: FlipcastRequest: ClassTag] extends Actor with FlipcastPushProtocol {
 
   implicit val timeout: Timeout = Duration(10, SECONDS)
 
   implicit val system: ActorSystem = Flipcast.system
 
-  val log = Logger(this.getClass.getSimpleName)
-
   val DEFAULT_TIMEOUT = Duration(120, SECONDS)
 
-  var sidelineChannel: ActorRef = null
-
-  var resendChannel: ActorRef = null
-
-  var consumerRef: ActorRef = null
+  val mediator = DistributedPubSubExtension(context.system).mediator
 
   def configType() : String
 
-  def basicQos() = QueueConfigurationManager.config(configType()).qos
-
-  def consume(message: String) : Boolean
+  def consume(message: T) : Boolean
 
   def config = QueueConfigurationManager.config(configType())
 
   def init()
 
+  lazy val log = Logger(configType())
+
   override def preStart() {
-    if(sidelineChannel == null) {
-      sidelineChannel = ConnectionHelper.createProducer(config.sidelineQueueName, config.sidelineExchange)
-    }
-    if(consumerRef == null) {
-      consumerRef = ConnectionHelper.createConsumer(config.inputQueueName, config.inputExchange, self, basicQos())
-    }
-    if(resendChannel == null) {
-      resendChannel = ConnectionHelper.createProducer(config.inputQueueName, config.inputExchange)
-    }
+    mediator ! Put(self)
     init()
-    log.info("Starting message consumer on: " +config.inputExchange +"/" +config.inputQueueName)
+    log.info("Starting message consumer on: " +config.inputQueueName +" Worker: " +self.path)
+  }
+
+  override def postStop(): Unit = {
+    mediator ! Remove(self.path.toString)
+    log.info("Stopping message consumer on: " +config.inputQueueName +" Worker: " +self.path)
   }
 
   def receive = {
-    case true =>
-      sender ! true
-    case Delivery(consumerTag, envelope, properties, body) =>
+    case message if classTag[T].runtimeClass.isInstance(message) =>
       try {
-        consume(new String(body)) match {
+        consume(message.asInstanceOf[T]) match {
           case true =>
-            sender ! Ack(envelope.getDeliveryTag)
+
           case false =>
-            sender ! Reject(envelope.getDeliveryTag, requeue = false)
-            sideline(body)
+            sideline(message.asInstanceOf[T])
         }
       } catch {
         case ex: Exception =>
           log.error("Error sending notification", ex)
-          sender ! Reject(envelope.getDeliveryTag, requeue = false)
-          sideline(body)
+          sideline(message.asInstanceOf[T])
       }
   }
 
-  private def sideline(message: Array[Byte]) {
-    sidelineChannel ! Publish(config.sidelineExchange, config.sidelineQueueName, message, ConnectionHelper.messageProperties, mandatory = false,
-      immediate = false)
+  private def sideline(message: T) {
+    message match {
+      case x: FlipcastPushRequest =>
+        mediator ! Send(config.sidelineQueueName, SidelinedMessage(UUID.randomUUID().toString,
+          x.configName, configType(), x.toJson.compactPrint, new Date()),localAffinity = false)
+    }
+
   }
 
-  def resend(message: String) {
-    resendChannel ! Publish(config.sidelineExchange, config.sidelineQueueName, message.getBytes, ConnectionHelper.messageProperties, mandatory = false,
-      immediate = false)
+  def resend(message: T) {
+    mediator ! Send(config.inputQueueName, message, localAffinity = false)
   }
 
 }

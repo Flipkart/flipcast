@@ -1,18 +1,19 @@
 package com.flipcast.push.apns.service
 
-import com.flipcast.push.common.FlipcastRequestConsumer
-import com.flipcast.push.protocol.FlipcastPushProtocol
-import com.flipcast.push.apns.protocol.ApnsProtocol
-import spray.json.JsonParser
+import java.util.{Calendar, Date}
+
 import com.flipcast.Flipcast
-import collection.JavaConverters._
-import java.util.{Date, Calendar}
-import com.flipcast.push.model.requests.{RecordPushHistoryRequest, FlipcastPushRequest}
+import com.flipcast.push.apns.protocol.ApnsProtocol
+import com.flipcast.push.common.FlipcastRequestConsumer
+import com.flipcast.push.model.requests.{FlipcastPushRequest, RecordPushHistoryRequest}
+import com.flipcast.push.protocol.FlipcastPushProtocol
+
+import scala.collection.JavaConverters._
 
 /**
  * APNS consumer to send apns push messages
  */
-class FlipcastApnsRequestConsumer extends FlipcastRequestConsumer with FlipcastPushProtocol with ApnsProtocol {
+class FlipcastApnsRequestConsumer extends FlipcastRequestConsumer[FlipcastPushRequest] with FlipcastPushProtocol with ApnsProtocol {
 
   override def configType() = "apns"
 
@@ -20,8 +21,7 @@ class FlipcastApnsRequestConsumer extends FlipcastRequestConsumer with FlipcastP
 
   }
 
-  def consume(message: String) = {
-    val request = JsonParser(message).convertTo[FlipcastPushRequest]
+  def consume(request: FlipcastPushRequest) = {
     val service = ApnsServicePool.service(request.configName)
     val config = Flipcast.pushConfigurationProvider.config(request.configName).apns
     val ttl = request.ttl match {
@@ -34,7 +34,7 @@ class FlipcastApnsRequestConsumer extends FlipcastRequestConsumer with FlipcastP
     service.push(request.registration_ids.asJavaCollection, request.data, c.getTime)
     //Record history for all successful devices
     request.registration_ids.par.foreach( r => {
-      Flipcast.serviceRegistry.actor("pushMessageHistoryManager") ! RecordPushHistoryRequest(request.configName, r, message)
+      Flipcast.serviceRegistry.actor("pushMessageHistoryManager") ! RecordPushHistoryRequest[FlipcastPushRequest](request.configName, r, request)
     })
     true
   }
