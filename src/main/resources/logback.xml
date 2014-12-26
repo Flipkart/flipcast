@@ -136,7 +136,7 @@
         <appender-ref ref="METRICS_ASYNC" />
     </logger>
 
-    <root level="DEBUG">
+    <root level="INFO">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="FILE_ASYNC" />
     </root>
