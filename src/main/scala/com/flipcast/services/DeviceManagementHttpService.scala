@@ -1,11 +1,10 @@
 package com.flipcast.services
 
-import com.flipcast.common.{BaseHttpServiceActor, BaseHttpService}
+import com.flipcast.common.{BaseHttpService, BaseHttpServiceWorker}
 import com.flipcast.model.requests.ServiceRequest
-import com.flipcast.model.responses.{ServiceBadRequestResponse, ServiceNotFoundResponse, ServiceUnhandledResponse, ServiceSuccessResponse}
-import com.flipcast.push.model.requests.{DeviceDetailsRegistrationBadRequest, DeviceDetailsRegisterRequest, DeviceDetailsUnregisterRequest, DeviceDetailsGetRequest}
+import com.flipcast.model.responses.{ServiceBadRequestResponse, ServiceNotFoundResponse, ServiceSuccessResponse, ServiceUnhandledResponse}
 import com.flipcast.push.common.DeviceDataSourceManager
-import com.flipcast.push.model.DeviceData
+import com.flipcast.push.model.requests.{DeviceDetailsGetRequest, DeviceDetailsRegisterRequest, DeviceDetailsRegistrationBadRequest, DeviceDetailsUnregisterRequest}
 import com.flipcast.push.model.responses.{DeviceDetailsRegisterResponse, DeviceDetailsUnregisterFailureResponse, DeviceDetailsUnregisterSuccessResponse}
 import spray.json.{JsObject, JsonParser}
 
@@ -13,7 +12,7 @@ class DeviceManagementHttpService (implicit val context: akka.actor.ActorRefFact
 
   def actorRefFactory = context
 
-  def worker = serviceRegistry.actor("deviceManagementServiceWorker")
+  def worker = DeviceManagementHttpServiceWorker
 
   val deviceManagement = path("flipcast" / "device" / Segment / Segment / Segment ) { (configName: String, filterKeys: String, filterValues: String) =>
     get { ctx =>
@@ -21,14 +20,14 @@ class DeviceManagementHttpService (implicit val context: akka.actor.ActorRefFact
       val keys = filterKeys.split(",")
       val values = filterValues.split(",")
       val selectKeys = List.range(0, keys.length).map( i => keys(i) -> values(i)).toMap
-      worker ! ServiceRequest[DeviceDetailsGetRequest](DeviceDetailsGetRequest(configName, selectKeys))
+      worker.execute(ServiceRequest[DeviceDetailsGetRequest](DeviceDetailsGetRequest(configName, selectKeys)))
     } ~
     delete { ctx =>
       implicit val reqCtx = ctx
       val keys = filterKeys.split(",")
       val values = filterValues.split(",")
       val selectKeys = List.range(0, keys.length).map( i => keys(i) -> values(i)).toMap
-      worker ! ServiceRequest[DeviceDetailsUnregisterRequest](DeviceDetailsUnregisterRequest(configName, selectKeys))
+      worker.execute(ServiceRequest[DeviceDetailsUnregisterRequest](DeviceDetailsUnregisterRequest(configName, selectKeys)))
     }
   } ~
   path("flipcast" / "device" / Segment / Segment / Segment) { (configName: String, filterKeys: String, filterValues: String) =>
@@ -44,15 +43,15 @@ class DeviceManagementHttpService (implicit val context: akka.actor.ActorRefFact
           val keys = filterKeys.split(",")
           val values = filterValues.split(",")
           val filter = List.range(0, keys.length).map( i => keys(i) -> values(i)).toMap
-          worker ! ServiceRequest[DeviceDetailsRegisterRequest](DeviceDetailsRegisterRequest(configName, deviceData.left.get, filter))
+          worker.execute(ServiceRequest[DeviceDetailsRegisterRequest](DeviceDetailsRegisterRequest(configName, deviceData.left.get, filter)))
         case _ =>
-          worker ! DeviceDetailsRegistrationBadRequest(deviceData.right.get.getMessage)
+          worker.execute(ServiceRequest[DeviceDetailsRegistrationBadRequest](DeviceDetailsRegistrationBadRequest(deviceData.right.get.getMessage)))
       }
     }
   }
 }
 
-class DeviceManagementHttpServiceWorker extends BaseHttpServiceActor {
+object DeviceManagementHttpServiceWorker extends BaseHttpServiceWorker {
 
   def process[T](data: T) = {
     data match {

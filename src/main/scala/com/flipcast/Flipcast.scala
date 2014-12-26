@@ -10,10 +10,10 @@ import akka.io.IO
 import com.codahale.metrics.{MetricFilter, Slf4jReporter}
 import com.flipcast.cluster.FlipcastClusterListener
 import com.flipcast.common.FlipCastMetricsRegistry
-import com.flipcast.model.config.{HazelcastConfig, MongoConfig, RmqConfig, ServerConfig}
+import com.flipcast.model.config.{MongoConfig, ServerConfig}
 import com.flipcast.mongo.ConnectionHelper
 import com.flipcast.push.apns.service.FlipcastApnsRequestConsumer
-import com.flipcast.push.common.{FlipcastSidelineConsumer, DeviceDataSourceManager}
+import com.flipcast.push.common.{DeviceDataSourceManager, FlipcastSidelineConsumer}
 import com.flipcast.push.config._
 import com.flipcast.push.gcm.service.FlipcastGcmRequestConsumer
 import com.flipcast.push.mongo.MongoDeviceDataSource
@@ -23,6 +23,7 @@ import com.flipcast.services._
 import com.typesafe.config.ConfigFactory
 import org.slf4j.LoggerFactory
 import spray.can.Http
+import scala.util.Try
 
 
 /**
@@ -61,11 +62,9 @@ object Flipcast extends App {
 
   lazy val serverConfig = ServerConfig(config.getConfig("flipcast.config.server"))
 
-  lazy val rmqConfig = RmqConfig(config.getConfig("flipcast.config.rmq"))
-
-  implicit lazy val hazelcastConfig = HazelcastConfig(config.getConfig("flipcast.config.hazelcast"))
-
   implicit lazy val mongoConfig = MongoConfig(config.getConfig("flipcast.config.mongo"))
+
+  val nodeRole = Try(config.getString("flipcast.config.role")).getOrElse("all")
 
   lazy val router = system.actorOf(Props[FlipcastRouter], "flipcastRouter")
 
@@ -95,36 +94,23 @@ object Flipcast extends App {
   IO(Http) ! Http.Bind(router, hostname, port = serverConfig.port)
 
   def registerServices() {
-    //Ping Service
-    serviceRegistry.register[PingHttpServiceWorker]("pingServiceWorker")
-    //Status Service
-    serviceRegistry.register[StatusHttpServiceWorker]("statusServiceWorker")
-    //Device management Service
-    serviceRegistry.register[DeviceManagementHttpServiceWorker]("deviceManagementServiceWorker", 4)
-    //Push History fetch service
-    serviceRegistry.register[PushHistoryHttpServiceWorker]("pushHistoryHttpServiceWorker")
-
-    //Push Messaging API
-    serviceRegistry.register[UnicastHttpServiceWorker]("unicastServiceWorker", 4)
-    serviceRegistry.register[MulticastHttpServiceWorker]("multicastServiceWorker", 2)
-    serviceRegistry.register[BroadcastHttpServiceWorker]("broadcastServiceWorker", 1)
-
-    //Configuration Service
-    serviceRegistry.register[PushConfigHttpServiceWorker]("pushConfigServiceWorker")
 
     //Auto update services for maintaining data sanity
     serviceRegistry.register[DeviceHouseKeepingManager]("deviceHouseKeepingManager", 4)
-    serviceRegistry.register[DeviceIdAutoUpdateManager]("deviceIdAutoUpdateManager", 4)
+    serviceRegistry.register[DeviceIdAutoUpdateManager]("deviceIdAutoUpdateManager", 2)
 
     //maintain message histories
     serviceRegistry.register[PushMessageHistoryManager]("pushMessageHistoryManager", 4)
 
-    //Message Consumers
-
-    serviceRegistry.register[FlipcastGcmRequestConsumer]("gcmRequestConsumer", dispatcher = Option("akka.actor.gcm-dispatcher"))
-    serviceRegistry.register[FlipcastApnsRequestConsumer]("apnsRequestConsumer", dispatcher = Option("akka.actor.apns-dispatcher"))
-    serviceRegistry.register[FlipcastMpnsRequestConsumer]("mpnsRequestConsumer", dispatcher = Option("akka.actor.mpns-dispatcher"))
-    serviceRegistry.register[BulkMessageConsumer]("bulkMessageConsumer")
+    //Message Consumers - Start only if role is all/not set
+    log.info("******************************************************************")
+    log.info("Node role: " +nodeRole)
+    log.info("******************************************************************")
+    nodeRole match {
+      case x  if x == "all" || x == "worker" =>  startMessageConsumers()
+      case _ =>
+        log.warn("***** Message consumers disabled! No message will be processed in this node! *****")
+    }
 
     //Sideline message consumer which will persist any abandoned/sidelined message
     serviceRegistry.register[FlipcastSidelineConsumer]("flipcastSidelineConsumer")
@@ -138,6 +124,16 @@ object Flipcast extends App {
    */
   def registerDataSources() {
     DeviceDataSourceManager.register("default", MongoDeviceDataSource)
+  }
+
+  /**
+   * Start all the message consumers
+   */
+  def startMessageConsumers() {
+    serviceRegistry.register[FlipcastGcmRequestConsumer]("gcmRequestConsumer", dispatcher = Option("akka.actor.gcm-dispatcher"))
+    serviceRegistry.register[FlipcastApnsRequestConsumer]("apnsRequestConsumer", dispatcher = Option("akka.actor.apns-dispatcher"))
+    serviceRegistry.register[FlipcastMpnsRequestConsumer]("mpnsRequestConsumer", dispatcher = Option("akka.actor.mpns-dispatcher"))
+    serviceRegistry.register[BulkMessageConsumer]("bulkMessageConsumer")
   }
 
   def startMetrics() {
@@ -156,7 +152,6 @@ object Flipcast extends App {
 
     //Register all the services
     registerServices()
-
 
     //Initialize database connection
     ConnectionHelper.init()

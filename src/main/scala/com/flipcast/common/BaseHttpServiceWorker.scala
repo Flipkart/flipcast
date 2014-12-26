@@ -29,7 +29,7 @@ import com.flipcast.push.model.responses.{DeviceDetailsUnregisterSuccessResponse
  *
  *  @author Phaneesh Nagaraja
  */
-trait BaseHttpServiceActor extends Actor with ServiceProtocolSupport {
+trait BaseHttpServiceWorker extends ServiceProtocolSupport {
 
   /**
    * Logger instance for service worker
@@ -55,16 +55,18 @@ trait BaseHttpServiceActor extends Actor with ServiceProtocolSupport {
    * Receive any service request that is sent to the service
    * @return Unit
    */
-  def receive = {
-    case request: ServiceRequest[_] =>
-      Flipcast.serviceState match {
-        case ServiceState.IN_ROTATION => processRequest(request)
-        case _ => unavailable(request.ctx)
-      }
-    case request: InRotationServiceRequest =>
-      processRequest(request)
-    case request: OutOfRotationServiceRequest =>
-      processRequest(request)
+  def execute(message: Any) = {
+    message match {
+      case request: ServiceRequest[_] =>
+        Flipcast.serviceState match {
+          case ServiceState.IN_ROTATION => processRequest(request)
+          case _ => unavailable(request.ctx)
+        }
+      case request: InRotationServiceRequest =>
+        processRequest(request)
+      case request: OutOfRotationServiceRequest =>
+        processRequest(request)
+    }
   }
 
   /**

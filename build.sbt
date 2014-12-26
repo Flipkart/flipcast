@@ -40,7 +40,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka"               %%   "akka-contrib"                  % "2.3.6",
   "com.typesafe.akka"               %%   "akka-slf4j"                    % "2.3.6",
   "com.typesafe.akka"               %%   "akka-testkit"                  % "2.3.6"                  % "test",
-  "ch.qos.logback"                  %    "logback-classic"               % "1.0.9",
+  "ch.qos.logback"                  %    "logback-classic"               % "1.1.2",
   "com.fasterxml.uuid"              %    "java-uuid-generator"           % "3.1.3",
   "com.codahale.metrics"            %    "metrics-logback"               % "3.0.1",
   "com.codahale.metrics"            %    "metrics-graphite"              % "3.0.1",
@@ -49,7 +49,7 @@ libraryDependencies ++= Seq(
   "commons-codec"                   %    "commons-codec"                 % "1.5",
   "com.google.guava"                %    "guava"                         % "15.0",
   "com.notnoop.apns"                %    "apns"                          % "0.2.3",
-  "org.mongodb"                     %%   "casbah"                        % "2.7.1",
+  "org.mongodb"                     %%   "casbah"                        % "2.8.0-RC0",
   "commons-io"                      %    "commons-io"                    % "2.4",
   "com.google.code.findbugs"        %    "jsr305"                        % "2.0.3",
   "org.specs2"                      %%   "specs2"                        % "2.3.11"                 % "test"

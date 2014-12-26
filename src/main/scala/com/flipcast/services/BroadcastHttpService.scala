@@ -1,16 +1,16 @@
 package com.flipcast.services
 
 import akka.contrib.pattern.DistributedPubSubExtension
-import akka.contrib.pattern.DistributedPubSubMediator.{Send, Publish}
-import com.flipcast.common.{BaseHttpServiceActor, BaseHttpService}
-import com.flipcast.push.protocol.{FlipcastPushProtocol, PushMessageProtocol}
-import com.flipcast.push.model.PushMessage
-import com.flipcast.model.requests.{BulkMessageRequest, BroadcastRequest, ServiceRequest}
-import com.flipcast.model.responses.{ServiceUnhandledResponse, MulticastSuccessResponse, ServiceSuccessResponse, ServiceBadRequestResponse}
-import com.flipcast.protocol.BulkMessageRequestProtocol
-import com.flipcast.push.config.QueueConfigurationManager
-import com.flipcast.push.common.DeviceDataSourceManager
+import akka.contrib.pattern.DistributedPubSubMediator.Send
 import com.flipcast.Flipcast
+import com.flipcast.common.{BaseHttpService, BaseHttpServiceWorker}
+import com.flipcast.model.requests.{BroadcastRequest, BulkMessageRequest, ServiceRequest}
+import com.flipcast.model.responses.{MulticastSuccessResponse, ServiceBadRequestResponse, ServiceSuccessResponse, ServiceUnhandledResponse}
+import com.flipcast.protocol.BulkMessageRequestProtocol
+import com.flipcast.push.common.DeviceDataSourceManager
+import com.flipcast.push.config.QueueConfigurationManager
+import com.flipcast.push.model.PushMessage
+import com.flipcast.push.protocol.{FlipcastPushProtocol, PushMessageProtocol}
 import spray.json._
 
 /**
@@ -24,7 +24,7 @@ class BroadcastHttpService (implicit val context: akka.actor.ActorRefFactory,
 
   def actorRefFactory = context
 
-  def worker = serviceRegistry.actor("broadcastServiceWorker")
+  def worker = BroadcastHttpServiceWorker
 
   val broadcastRoute = path("flipcast" / "push" / "broadcast" / Segment) { (configName: String) => {
       post { ctx =>
@@ -37,17 +37,17 @@ class BroadcastHttpService (implicit val context: akka.actor.ActorRefFactory,
             Right(ex)
         }
         payload.isLeft match {
-          case true => worker ! ServiceRequest[BroadcastRequest](BroadcastRequest(configName, payload.left.get))
-          case false => worker ! ServiceBadRequestResponse(payload.right.get.getMessage)
+          case true => worker.execute(ServiceRequest[BroadcastRequest](BroadcastRequest(configName, payload.left.get)))
+          case false => worker.execute(ServiceBadRequestResponse(payload.right.get.getMessage))
         }
       }
     }
   }
 }
 
-class BroadcastHttpServiceWorker extends BaseHttpServiceActor with FlipcastPushProtocol with BulkMessageRequestProtocol {
+object BroadcastHttpServiceWorker extends BaseHttpServiceWorker with FlipcastPushProtocol with BulkMessageRequestProtocol {
 
-  val mediator = DistributedPubSubExtension(context.system).mediator
+  val mediator = DistributedPubSubExtension(Flipcast.system).mediator
 
   def process[T](request: T) = {
     request match {

@@ -3,7 +3,7 @@ package com.flipcast.services
 import akka.contrib.pattern.DistributedPubSubExtension
 import akka.contrib.pattern.DistributedPubSubMediator.Send
 import com.flipcast.Flipcast
-import com.flipcast.common.{BaseHttpService, BaseHttpServiceActor}
+import com.flipcast.common.{BaseHttpService, BaseHttpServiceWorker}
 import com.flipcast.model.requests.{BulkMessageRequest, MulticastRequest, ServiceRequest}
 import com.flipcast.model.responses.{ServiceBadRequestResponse, ServiceSuccessResponse, _}
 import com.flipcast.protocol.BulkMessageRequestProtocol
@@ -24,7 +24,7 @@ class MulticastHttpService (implicit val context: akka.actor.ActorRefFactory,
 
   def actorRefFactory = context
 
-  def worker = serviceRegistry.actor("multicastServiceWorker")
+  def worker = MulticastHttpServiceWorker
 
   val multicastRoute = path("flipcast" / "push" / "multicast" / Segment / Segment / Segment) {
     (configName: String, filterKeys: String, filterValues: String) => {
@@ -41,8 +41,8 @@ class MulticastHttpService (implicit val context: akka.actor.ActorRefFactory,
             Right(ex)
         }
         payload.isLeft match {
-          case true => worker ! ServiceRequest[MulticastRequest](MulticastRequest(configName, selectKeys, payload.left.get))
-          case false => worker ! ServiceBadRequestResponse(payload.right.get.getMessage)
+          case true => worker.execute(ServiceRequest[MulticastRequest](MulticastRequest(configName, selectKeys, payload.left.get)))
+          case false => worker.execute(ServiceBadRequestResponse(payload.right.get.getMessage))
         }
       }
     }
@@ -51,9 +51,9 @@ class MulticastHttpService (implicit val context: akka.actor.ActorRefFactory,
 }
 
 
-class MulticastHttpServiceWorker extends BaseHttpServiceActor with FlipcastPushProtocol with BulkMessageRequestProtocol {
+object MulticastHttpServiceWorker extends BaseHttpServiceWorker with FlipcastPushProtocol with BulkMessageRequestProtocol {
 
-  val mediator = DistributedPubSubExtension(context.system).mediator
+  val mediator = DistributedPubSubExtension(Flipcast.system).mediator
 
   def process[T](request: T) = {
     request match {

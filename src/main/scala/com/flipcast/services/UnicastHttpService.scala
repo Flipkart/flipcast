@@ -2,7 +2,8 @@ package com.flipcast.services
 
 import akka.contrib.pattern.DistributedPubSubExtension
 import akka.contrib.pattern.DistributedPubSubMediator.Send
-import com.flipcast.common.{BaseHttpService, BaseHttpServiceActor}
+import com.flipcast.Flipcast
+import com.flipcast.common.{BaseHttpService, BaseHttpServiceWorker}
 import com.flipcast.model.requests.{ServiceRequest, UnicastRequest}
 import com.flipcast.model.responses.{ServiceBadRequestResponse, ServiceNotFoundResponse, ServiceSuccessResponse, ServiceUnhandledResponse, _}
 import com.flipcast.push.common.{DeviceDataSourceManager, PushMessageTransformerRegistry}
@@ -23,8 +24,7 @@ class UnicastHttpService (implicit val context: akka.actor.ActorRefFactory,
 
   def actorRefFactory = context
 
-  def worker = serviceRegistry.actor("unicastServiceWorker")
-
+  def worker = UnicastHttpServiceWorker
 
   val unicastRoute = path("flipcast" / "push" / "unicast" / Segment / Segment / Segment) {
     (configName: String, filterKeys: String, filterValues: String) => {
@@ -41,8 +41,8 @@ class UnicastHttpService (implicit val context: akka.actor.ActorRefFactory,
             Right(ex)
         }
         payload.isLeft match {
-          case true => worker ! ServiceRequest[UnicastRequest](UnicastRequest(configName, selectKeys, payload.left.get))
-          case false => worker ! ServiceBadRequestResponse(payload.right.get.getMessage)
+          case true => worker.execute(ServiceRequest[UnicastRequest](UnicastRequest(configName, selectKeys, payload.left.get)))
+          case false => worker.execute(ServiceBadRequestResponse(payload.right.get.getMessage))
         }
       }
     }
@@ -50,10 +50,9 @@ class UnicastHttpService (implicit val context: akka.actor.ActorRefFactory,
 }
 
 
-class UnicastHttpServiceWorker extends BaseHttpServiceActor with FlipcastPushProtocol {
+object UnicastHttpServiceWorker extends BaseHttpServiceWorker with FlipcastPushProtocol {
 
-  val mediator = DistributedPubSubExtension(context.system).mediator
-
+  val mediator = DistributedPubSubExtension(Flipcast.system).mediator
 
   def process[T](request: T) = {
     request match {

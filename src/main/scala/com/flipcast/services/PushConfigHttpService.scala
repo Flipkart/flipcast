@@ -1,13 +1,9 @@
 package com.flipcast.services
 
-import com.flipcast.common.{BaseHttpServiceActor, BaseHttpService}
-import com.flipcast.model.responses._
-import com.flipcast.push.config.PushConfigurationManager
-import com.flipcast.model.responses.ServiceUnhandledResponse
-import com.flipcast.push.config.PushConfig
-import com.flipcast.model.requests.{DeletePushConfigRequest, UpdatePushConfigRequest, GetPushConfigRequest, ServiceRequest}
-import scala.Some
-import com.flipcast.model.responses.ServiceSuccessResponse
+import com.flipcast.common.{BaseHttpService, BaseHttpServiceWorker}
+import com.flipcast.model.requests.{DeletePushConfigRequest, GetPushConfigRequest, ServiceRequest, UpdatePushConfigRequest}
+import com.flipcast.model.responses.{ServiceSuccessResponse, ServiceUnhandledResponse, _}
+import com.flipcast.push.config.{PushConfig, PushConfigurationManager}
 import com.flipcast.push.protocol.PushConfigurationProtocol
 import spray.json.JsonParser
 
@@ -21,29 +17,29 @@ class PushConfigHttpService (implicit val context: akka.actor.ActorRefFactory,
 
   def actorRefFactory = context
 
-  def worker = serviceRegistry.actor("pushConfigServiceWorker")
+  def worker = PushConfigHttpServiceWorker
 
   val pushConfigRoute = path("flipcast" / "push" / "config" / Segment) { configName: String =>
     get { ctx =>
       implicit val reqCtx = ctx
-      worker ! ServiceRequest[GetPushConfigRequest](GetPushConfigRequest(configName))
+      worker.execute(ServiceRequest[GetPushConfigRequest](GetPushConfigRequest(configName)))
     } ~
     delete  { ctx =>
       implicit val reqCtx = ctx
-      worker ! ServiceRequest[DeletePushConfigRequest](DeletePushConfigRequest(configName))
+      worker.execute(ServiceRequest[DeletePushConfigRequest](DeletePushConfigRequest(configName)))
     }
   } ~
   path("flipcast" / "push" / "config") {
     (put | post) { ctx =>
       implicit val reqCtx = ctx
-      worker ! ServiceRequest[UpdatePushConfigRequest](UpdatePushConfigRequest(ctx))
+      worker.execute(ServiceRequest[UpdatePushConfigRequest](UpdatePushConfigRequest(ctx)))
     }
   }
 }
 
 
 
-class PushConfigHttpServiceWorker extends BaseHttpServiceActor with PushConfigurationProtocol {
+object PushConfigHttpServiceWorker extends BaseHttpServiceWorker with PushConfigurationProtocol {
 
   def process[T](data: T) = {
     data match {

@@ -18,6 +18,6 @@ trait BaseHttpService extends HttpService with ServiceProtocolSupport {
 
   implicit val system = Flipcast.system
 
-  def worker : ActorRef
+  def worker : BaseHttpServiceWorker
 
 }
