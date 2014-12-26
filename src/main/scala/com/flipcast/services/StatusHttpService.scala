@@ -1,6 +1,6 @@
 package com.flipcast.services
 
-import com.flipcast.common.{BaseHttpServiceActor, BaseHttpService}
+import com.flipcast.common.{BaseHttpServiceWorker, BaseHttpService}
 import com.flipcast.{ServiceState, Flipcast}
 import java.util.concurrent.locks.ReentrantLock
 import com.flipcast.model.responses._
@@ -26,24 +26,24 @@ class StatusHttpService (implicit val context: akka.actor.ActorRefFactory,
 
   def actorRefFactory = context
 
-  def worker = serviceRegistry.actor("statusServiceWorker")
+  def worker = StatusHttpServiceWorker
 
   val statusRoute = path("status") {
     get { ctx =>
       implicit val reqCtx = ctx
-      worker ! ServiceRequest[StatusCheckRequest](StatusCheckRequest())
+      worker.execute(ServiceRequest[StatusCheckRequest](StatusCheckRequest()))
     }
   } ~
   path("inr") {
     post { ctx =>
       implicit val reqCtx = ctx
-      worker ! InRotationServiceRequest()
+      worker.execute(InRotationServiceRequest())
     }
   } ~
   path("oor") {
     post { ctx =>
       implicit val reqCtx = ctx
-      worker ! OutOfRotationServiceRequest()
+      worker.execute(OutOfRotationServiceRequest())
     }
   }
 
@@ -54,7 +54,7 @@ class StatusHttpService (implicit val context: akka.actor.ActorRefFactory,
  *
  * @author Phaneesh Nagaraja
  */
-class StatusHttpServiceWorker extends BaseHttpServiceActor {
+object StatusHttpServiceWorker extends BaseHttpServiceWorker {
 
   val lock = new ReentrantLock()
 

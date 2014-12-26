@@ -1,32 +1,29 @@
 package com.flipcast
 
-import akka.event.slf4j.Logger
 import java.net.InetAddress
-import com.typesafe.config.ConfigFactory
-import akka.actor.{Props, ActorSystem}
-import akka.io.IO
-import spray.can.Http
-import com.flipcast.services._
-import com.flipcast.push.config.{PushConfigurationManager, MongoBasedPushConfigurationProvider, PushConfigurationProvider}
-import com.flipcast.mongo.ConnectionHelper
-import com.flipcast.hazelcast.HazelcastManager
-import com.flipcast.push.service.{BulkMessageConsumer, PushMessageHistoryManager, DeviceIdAutoUpdateManager, DeviceHouseKeepingManager}
-import com.flipcast.push.gcm.service.FlipcastGcmRequestConsumer
-import com.flipcast.model.config.ServerConfig
-import com.flipcast.model.config.MongoConfig
-import com.flipcast.model.config.HazelcastConfig
-import com.flipcast.model.config.RmqConfig
-import com.flipcast.push.common.DeviceDataSourceManager
-import com.flipcast.push.mongo.MongoDeviceDataSource
-import com.flipcast.push.apns.service.FlipcastApnsRequestConsumer
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext
-import ExecutionContext.Implicits.global
-import com.flipcast.push.mpns.service.FlipcastMpnsRequestConsumer
 import java.util.concurrent.TimeUnit
-import com.codahale.metrics.{Slf4jReporter, MetricFilter}
-import org.slf4j.LoggerFactory
+
+import akka.actor.{ActorSystem, Props}
+import akka.contrib.pattern.DistributedPubSubExtension
+import akka.event.slf4j.Logger
+import akka.io.IO
+import com.codahale.metrics.{MetricFilter, Slf4jReporter}
+import com.flipcast.cluster.FlipcastClusterListener
 import com.flipcast.common.FlipCastMetricsRegistry
+import com.flipcast.model.config.{MongoConfig, ServerConfig}
+import com.flipcast.mongo.ConnectionHelper
+import com.flipcast.push.apns.service.FlipcastApnsRequestConsumer
+import com.flipcast.push.common.{DeviceDataSourceManager, FlipcastSidelineConsumer}
+import com.flipcast.push.config._
+import com.flipcast.push.gcm.service.FlipcastGcmRequestConsumer
+import com.flipcast.push.mongo.MongoDeviceDataSource
+import com.flipcast.push.mpns.service.FlipcastMpnsRequestConsumer
+import com.flipcast.push.service.{BulkMessageConsumer, DeviceHouseKeepingManager, DeviceIdAutoUpdateManager, PushMessageHistoryManager}
+import com.flipcast.services._
+import com.typesafe.config.ConfigFactory
+import org.slf4j.LoggerFactory
+import spray.can.Http
+import scala.util.Try
 
 
 /**
@@ -40,7 +37,7 @@ object Flipcast extends App {
   /**
    * Logger for Flipcast app
    */
-  lazy val log = Logger("Flipcast")
+  lazy val log = Logger("flipcast")
 
   /**
    * Host name that will be used to bind the server
@@ -65,22 +62,23 @@ object Flipcast extends App {
 
   lazy val serverConfig = ServerConfig(config.getConfig("flipcast.config.server"))
 
-  lazy val rmqConfig = RmqConfig(config.getConfig("flipcast.config.rmq"))
-
-  implicit lazy val hazelcastConfig = HazelcastConfig(config.getConfig("flipcast.config.hazelcast"))
-
   implicit lazy val mongoConfig = MongoConfig(config.getConfig("flipcast.config.mongo"))
+
+  val nodeRole = Try(config.getString("flipcast.config.role")).getOrElse("all")
 
   lazy val router = system.actorOf(Props[FlipcastRouter], "flipcastRouter")
 
+  val clusterListener = system.actorOf(Props[FlipcastClusterListener], "flipcastClusterListener")
+
   lazy val serviceRegistry = new ServiceRegistry()
+
+  val mediator = DistributedPubSubExtension(system).mediator
 
   boot()
 
   implicit val pushConfigurationProvider : PushConfigurationProvider = new MongoBasedPushConfigurationProvider()(config.getConfig("flipcast.config.push.mongo"))
 
   PushConfigurationManager.init()
-
 
   var serviceState : ServiceState.Value = ServiceState.IN_ROTATION
 
@@ -90,43 +88,35 @@ object Flipcast extends App {
   log.info("Port: " +serverConfig.port)
   log.info("--------------------------------------------------------------------------")
 
-
   /**
    * Startup server
    */
   IO(Http) ! Http.Bind(router, hostname, port = serverConfig.port)
 
   def registerServices() {
-    //Ping Service
-    serviceRegistry.register[PingHttpServiceWorker]("pingServiceWorker")
-    //Status Service
-    serviceRegistry.register[StatusHttpServiceWorker]("statusServiceWorker")
-    //Device management Service
-    serviceRegistry.register[DeviceManagementHttpServiceWorker]("deviceManagementServiceWorker", 4)
-    //Push History fetch service
-    serviceRegistry.register[PushHistoryHttpServiceWorker]("pushHistoryHttpServiceWorker")
-
-    //Push Messaging API
-    serviceRegistry.register[UnicastHttpServiceWorker]("unicastServiceWorker", 4)
-    serviceRegistry.register[MulticastHttpServiceWorker]("multicastServiceWorker", 2)
-    serviceRegistry.register[BroadcastHttpServiceWorker]("broadcastServiceWorker", 1)
-
-    //Configuration Service
-    serviceRegistry.register[PushConfigHttpServiceWorker]("pushConfigServiceWorker")
 
     //Auto update services for maintaining data sanity
     serviceRegistry.register[DeviceHouseKeepingManager]("deviceHouseKeepingManager", 4)
-    serviceRegistry.register[DeviceIdAutoUpdateManager]("deviceIdAutoUpdateManager", 4)
+    serviceRegistry.register[DeviceIdAutoUpdateManager]("deviceIdAutoUpdateManager", 2)
 
     //maintain message histories
     serviceRegistry.register[PushMessageHistoryManager]("pushMessageHistoryManager", 4)
 
-    //Message Consumers
-    serviceRegistry.register[FlipcastGcmRequestConsumer]("gcmRequestConsumer")
-    serviceRegistry.register[FlipcastApnsRequestConsumer]("apnsRequestConsumer")
-    serviceRegistry.register[FlipcastMpnsRequestConsumer]("mpnsRequestConsumer")
-    serviceRegistry.register[BulkMessageConsumer]("bulkMessageConsumer")
+    //Message Consumers - Start only if role is all/not set
+    log.info("******************************************************************")
+    log.info("Node role: " +nodeRole)
+    log.info("******************************************************************")
+    nodeRole match {
+      case x  if x == "all" || x == "worker" =>  startMessageConsumers()
+      case _ =>
+        log.warn("***** Message consumers disabled! No message will be processed in this node! *****")
+    }
 
+    //Sideline message consumer which will persist any abandoned/sidelined message
+    serviceRegistry.register[FlipcastSidelineConsumer]("flipcastSidelineConsumer")
+
+    //Push configuration change listener to auto update cache
+    serviceRegistry.register[PushConfigChangeListener]("pushConfigChangeListener")
   }
 
   /**
@@ -137,15 +127,14 @@ object Flipcast extends App {
   }
 
   /**
-   * Register all message consumers
+   * Start all the message consumers
    */
-  def registerAllMessageConsumers() {
-    log.info("Starting all message consumers....")
-    system.scheduler.scheduleOnce(30 seconds, serviceRegistry.actor("gcmRequestConsumer"), true)
-    system.scheduler.scheduleOnce(35 seconds, serviceRegistry.actor("apnsRequestConsumer"), true)
-    system.scheduler.scheduleOnce(40 seconds, serviceRegistry.actor("bulkMessageConsumer"), true)
+  def startMessageConsumers() {
+    serviceRegistry.register[FlipcastGcmRequestConsumer]("gcmRequestConsumer", dispatcher = Option("akka.actor.gcm-dispatcher"))
+    serviceRegistry.register[FlipcastApnsRequestConsumer]("apnsRequestConsumer", dispatcher = Option("akka.actor.apns-dispatcher"))
+    serviceRegistry.register[FlipcastMpnsRequestConsumer]("mpnsRequestConsumer", dispatcher = Option("akka.actor.mpns-dispatcher"))
+    serviceRegistry.register[BulkMessageConsumer]("bulkMessageConsumer")
   }
-
 
   def startMetrics() {
     FlipCastMetricsRegistry.registerDefaults()
@@ -160,27 +149,15 @@ object Flipcast extends App {
 
 
   def boot() {
-    //Initialize RMQ connection
-    rmq.ConnectionHelper.init()
 
     //Register all the services
     registerServices()
 
-
     //Initialize database connection
     ConnectionHelper.init()
 
-    //Initialize hazelcast cluster
-    HazelcastManager.init()
-
     //Register datasource
     registerDataSources()
-
-    /**
-     * Register message consumers
-     */
-    registerAllMessageConsumers()
-
 
     //Set service instance to active state
     serviceState = ServiceState.IN_ROTATION

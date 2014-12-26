@@ -1,24 +1,24 @@
 package com.flipcast.services
 
-import com.flipcast.common.{FlipCastMetricsRegistry, BaseHttpServiceActor, BaseHttpService}
-import com.flipcast.model.requests.{ServiceRequest, PingServiceRequest}
-import com.flipcast.model.responses.{ServiceSuccessResponse, ServiceUnhandledResponse, PingServiceResponse}
+import com.flipcast.common.{BaseHttpService, BaseHttpServiceWorker}
+import com.flipcast.model.requests.{PingServiceRequest, ServiceRequest}
+import com.flipcast.model.responses.{PingServiceResponse, ServiceSuccessResponse, ServiceUnhandledResponse}
 
 class PingHttpService (implicit val context: akka.actor.ActorRefFactory, implicit val serviceRegistry: ServiceRegistry) extends BaseHttpService {
 
   def actorRefFactory = context
 
-  def worker = serviceRegistry.actor("pingServiceWorker")
+  def worker = PingHttpServiceWorker
 
   val pingRoute = path("ping") {
     get { ctx =>
        implicit val reqCtx = ctx
-       worker ! ServiceRequest[PingServiceRequest](PingServiceRequest())
+       worker.execute(ServiceRequest[PingServiceRequest](PingServiceRequest()))
     }
   }
 }
 
-class PingHttpServiceWorker extends BaseHttpServiceActor {
+object PingHttpServiceWorker extends BaseHttpServiceWorker {
 
   def process[T](data: T) = {
     data match {

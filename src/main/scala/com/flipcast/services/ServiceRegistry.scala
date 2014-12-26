@@ -26,15 +26,22 @@ class ServiceRegistry (implicit val system: ActorSystem) {
    * @param instances Total no of actor instances
    * @tparam T Actor or any of the subclasses of actor
    */
-  def register[T <: Actor : ClassTag](name: String, instances: Int = 1) {
+  def register[T <: Actor : ClassTag](name: String, instances: Int = 1, dispatcher: Option[String] = None) {
     serviceCache.containsKey(name) match {
       case true => throw new IllegalArgumentException("Duplicate service registration")
       case false =>
         val aRef = instances match {
           case 1 =>
-            system.actorOf(Props[T], name)
+            dispatcher match {
+              case Some(d) => system.actorOf(Props[T].withDispatcher(d), name)
+              case _ => system.actorOf(Props[T], name)
+            }
           case _ =>
-            system.actorOf(Props[T].withRouter(RoundRobinPool(nrOfInstances = instances)), name)
+            dispatcher match {
+              case Some(d) =>
+                system.actorOf(Props[T].withRouter(RoundRobinPool(nrOfInstances = instances)).withDispatcher(d), name)
+              case _ => system.actorOf(Props[T].withRouter(RoundRobinPool(nrOfInstances = instances)), name)
+            }
         }
         serviceCache.put(name, aRef)
     }

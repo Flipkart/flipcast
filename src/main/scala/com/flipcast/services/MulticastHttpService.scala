@@ -1,20 +1,17 @@
 package com.flipcast.services
 
-import com.flipcast.common.{BaseHttpServiceActor, BaseHttpService}
-import com.flipcast.push.protocol.{FlipcastPushProtocol, PushMessageProtocol}
-import akka.actor.ActorRef
-import com.flipcast.push.config.QueueConfigurationManager
-import com.flipcast.rmq.ConnectionHelper
-import com.flipcast.push.common.DeviceDataSourceManager
-import com.flipcast.push.model.PushMessage
-import com.flipcast.model.responses._
-import com.github.sstone.amqp.Amqp.Publish
-import com.flipcast.model.responses.ServiceSuccessResponse
-import com.flipcast.model.responses.ServiceBadRequestResponse
-import spray.json._
-import com.flipcast.model.requests.{ServiceRequest, BulkMessageRequest, MulticastRequest}
+import akka.contrib.pattern.DistributedPubSubExtension
+import akka.contrib.pattern.DistributedPubSubMediator.Send
 import com.flipcast.Flipcast
+import com.flipcast.common.{BaseHttpService, BaseHttpServiceWorker}
+import com.flipcast.model.requests.{BulkMessageRequest, MulticastRequest, ServiceRequest}
+import com.flipcast.model.responses.{ServiceBadRequestResponse, ServiceSuccessResponse, _}
 import com.flipcast.protocol.BulkMessageRequestProtocol
+import com.flipcast.push.common.DeviceDataSourceManager
+import com.flipcast.push.config.QueueConfigurationManager
+import com.flipcast.push.model.PushMessage
+import com.flipcast.push.protocol.{FlipcastPushProtocol, PushMessageProtocol}
+import spray.json._
 
 /**
  * HTTP service for multicast push requests
@@ -27,7 +24,7 @@ class MulticastHttpService (implicit val context: akka.actor.ActorRefFactory,
 
   def actorRefFactory = context
 
-  def worker = serviceRegistry.actor("multicastServiceWorker")
+  def worker = MulticastHttpServiceWorker
 
   val multicastRoute = path("flipcast" / "push" / "multicast" / Segment / Segment / Segment) {
     (configName: String, filterKeys: String, filterValues: String) => {
@@ -44,8 +41,8 @@ class MulticastHttpService (implicit val context: akka.actor.ActorRefFactory,
             Right(ex)
         }
         payload.isLeft match {
-          case true => worker ! ServiceRequest[MulticastRequest](MulticastRequest(configName, selectKeys, payload.left.get))
-          case false => worker ! ServiceBadRequestResponse(payload.right.get.getMessage)
+          case true => worker.execute(ServiceRequest[MulticastRequest](MulticastRequest(configName, selectKeys, payload.left.get)))
+          case false => worker.execute(ServiceBadRequestResponse(payload.right.get.getMessage))
         }
       }
     }
@@ -54,21 +51,9 @@ class MulticastHttpService (implicit val context: akka.actor.ActorRefFactory,
 }
 
 
-class MulticastHttpServiceWorker extends BaseHttpServiceActor with FlipcastPushProtocol with BulkMessageRequestProtocol {
+object MulticastHttpServiceWorker extends BaseHttpServiceWorker with FlipcastPushProtocol with BulkMessageRequestProtocol {
 
-  var senderChannel : ActorRef = null
-
-  var senderSidelineChannel: ActorRef = null
-
-  override def preStart() {
-    val config = QueueConfigurationManager.bulkConfig()
-    if(senderChannel == null) {
-      senderChannel = ConnectionHelper.createProducer(config.inputQueueName, config.inputExchange)
-    }
-    if(senderSidelineChannel == null) {
-      senderSidelineChannel = ConnectionHelper.createProducer(config.sidelineQueueName, config.sidelineExchange)
-    }
-  }
+  val mediator = DistributedPubSubExtension(Flipcast.system).mediator
 
   def process[T](request: T) = {
     request match {
@@ -83,9 +68,7 @@ class MulticastHttpServiceWorker extends BaseHttpServiceActor with FlipcastPushP
         var limit = 1
         List.range[Long](0, batches).foreach( batch => {
           val split = BulkMessageRequest(request.configName, request.filter, request.message, batch.toInt, limit * batchSize)
-          senderChannel ! Publish(config.inputExchange, config.inputQueueName, split.toJson.compactPrint.getBytes,
-            ConnectionHelper.messageProperties, mandatory = false,
-            immediate = false)
+          mediator ! Send(config.inputQueueName, split, localAffinity = false)
           limit += 1
         })
         ServiceSuccessResponse[MulticastSuccessResponse](MulticastSuccessResponse(deviceCount, batches))

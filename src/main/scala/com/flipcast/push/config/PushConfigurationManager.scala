@@ -1,9 +1,12 @@
 package com.flipcast.push.config
 
+import akka.contrib.pattern.DistributedPubSubExtension
+import akka.contrib.pattern.DistributedPubSubMediator.Publish
 import akka.event.slf4j.Logger
-import com.hazelcast.core.IMap
-import com.flipcast.hazelcast.HazelcastManager
-import collection.JavaConverters._
+import com.flipcast.Flipcast
+import com.google.common.cache.CacheBuilder
+
+import scala.collection.JavaConverters._
 
 /**
  * Manager for push configuration
@@ -16,8 +19,12 @@ object PushConfigurationManager {
 
   val log = Logger("PushConfigurationManager")
 
-  lazy val configurationCache: IMap[String, PushConfig] = HazelcastManager.map[String, PushConfig]("PushConfigurationCache")
+  private val cache = CacheBuilder.newBuilder()
+    .maximumSize(1024)
+    .initialCapacity(8)
+    .build[String, PushConfig]()
 
+  val mediator = DistributedPubSubExtension(Flipcast.system).mediator
 
   def init() (implicit provider: PushConfigurationProvider) {
     val start = System.currentTimeMillis()
@@ -26,7 +33,7 @@ object PushConfigurationManager {
     val configs = provider.load()
     configs.foreach( c => {
       log.info("Loading configuration: " +c.configName)
-      configurationCache.putIfAbsent(c.configName, c)
+      cache.asMap().putIfAbsent(c.configName, c)
     })
     val end = System.currentTimeMillis()
     log.info("Loaded push configuration in " +(end - start) +" ms")
@@ -34,29 +41,37 @@ object PushConfigurationManager {
 
   def save(config: PushConfig) = {
     val result = pushConfigurationProvider.save(config)
-    configurationCache.put(config.configName, config)
+    mediator ! Publish("pushConfig", PushConfigUpdatedMessage(config.configName, config))
     result
   }
 
   def config(configName: String) : Option[PushConfig] = {
-    configurationCache.containsKey(configName) match {
-      case true => Option(configurationCache.get(configName))
+    cache.asMap().containsKey(configName) match {
+      case true => Option(cache.asMap().get(configName))
       case false => None
     }
   }
 
   def configs() : List[String] = {
-    configurationCache.keySet().asScala.toList
+    cache.asMap().keySet().asScala.toList
   }
 
   def delete(configName: String) = {
     val result = pushConfigurationProvider.delete(configName)
     result match {
       case true =>
-        configurationCache.delete(configName)
+        mediator ! Publish("pushConfig", PushConfigDeletedMessage(configName))
       case false => None
     }
     result
+  }
+
+  def updateConfig(config: PushConfig): Unit = {
+    cache.put(config.configName, config)
+  }
+
+  def deleteConfig(configName: String): Unit = {
+    cache.invalidate(configName)
   }
 
 }

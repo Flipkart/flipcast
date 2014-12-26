@@ -1,6 +1,6 @@
 package com.flipcast.services
 
-import com.flipcast.common.{BaseHttpServiceActor, BaseHttpService}
+import com.flipcast.common.{BaseHttpServiceWorker, BaseHttpService}
 import com.flipcast.model.requests._
 import com.flipcast.push.protocol.PushConfigurationProtocol
 import com.flipcast.model.responses._
@@ -17,28 +17,28 @@ import scala.concurrent.duration.Duration
  *
  * @author Phaneesh Nagaraja
  */
-class PushHistoryStatsHttpService (implicit val context: akka.actor.ActorRefFactory,
+class PushHistoryHttpService (implicit val context: akka.actor.ActorRefFactory,
                                    implicit val serviceRegistry: ServiceRegistry) extends BaseHttpService {
 
   def actorRefFactory = context
 
-  def worker = serviceRegistry.actor("pushHistoryServiceWorker")
+  def worker = PushHistoryHttpServiceWorker
 
   val pushHistoryRoute = path("flipcast" / "push" / "history" / Segment) { configName: String =>
     get { ctx =>
         implicit val reqCtx = ctx
-        worker ! ServiceRequest[GetAllPushHistoryRequest](GetAllPushHistoryRequest(configName, "1d"))
+        worker.execute(ServiceRequest[GetAllPushHistoryRequest](GetAllPushHistoryRequest(configName, "1d")))
       }
     } ~
     path("flipcast" / "push" / "history" / Segment / Segment ) { (configName: String, from: String) =>
       get { ctx =>
         implicit val reqCtx = ctx
-        worker ! ServiceRequest[GetAllPushHistoryRequest](GetAllPushHistoryRequest(configName, from))
+        worker.execute(ServiceRequest[GetAllPushHistoryRequest](GetAllPushHistoryRequest(configName, from)))
       }
     }
 }
 
-class PushHistoryHttpServiceWorker extends BaseHttpServiceActor with PushConfigurationProtocol {
+object PushHistoryHttpServiceWorker extends BaseHttpServiceWorker with PushConfigurationProtocol {
 
   def process[T](data: T) = {
     data match {

@@ -1,20 +1,21 @@
 package com.flipcast.push.mpns.service
 
-import com.flipcast.push.common.FlipcastRequestConsumer
-import com.flipcast.push.protocol.FlipcastPushProtocol
-import com.flipcast.push.gcm.protocol.GcmProtocol
-import spray.http.{StatusCodes, HttpHeaders}
-import java.util.UUID
-import spray.client.HttpDialog
-import spray.httpx.RequestBuilding._
-import com.flipcast.push.model.requests.{DeviceHousekeepingRequest, RecordPushHistoryRequest, FlipcastPushRequest}
 import java.net.URL
-import scala.concurrent.{ExecutionContext, Await}
-import ExecutionContext.Implicits.global
+import java.util.UUID
+
 import com.flipcast.Flipcast
-import scala.collection.mutable.ListBuffer
-import spray.json._
+import com.flipcast.push.common.FlipcastRequestConsumer
+import com.flipcast.push.gcm.protocol.GcmProtocol
+import com.flipcast.push.model.requests.{DeviceHousekeepingRequest, FlipcastPushRequest, RecordPushHistoryRequest}
+import com.flipcast.push.protocol.FlipcastPushProtocol
 import org.apache.commons.codec.binary.Base64
+import spray.client.HttpDialog
+import spray.http.{HttpHeaders, StatusCodes}
+import spray.httpx.RequestBuilding._
+
+import scala.collection.mutable.ListBuffer
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.xml.XML
 
 /**
@@ -23,7 +24,7 @@ import scala.xml.XML
  *
  * @author Phaneesh Nagaraja
  */
-class FlipcastMpnsRequestConsumer extends FlipcastRequestConsumer with FlipcastPushProtocol with GcmProtocol {
+class FlipcastMpnsRequestConsumer extends FlipcastRequestConsumer[FlipcastPushRequest] with FlipcastPushProtocol with GcmProtocol {
 
   override def configType() = "mpns"
 
@@ -31,8 +32,7 @@ class FlipcastMpnsRequestConsumer extends FlipcastRequestConsumer with FlipcastP
 
   }
 
-  override def consume(message: String) = {
-    val request = JsonParser(message).convertTo[FlipcastPushRequest]
+  override def consume(request: FlipcastPushRequest) = {
 //    val config = Flipcast.pushConfigurationProvider.config(request.configName).mpns
     val failedIds = new ListBuffer[String]()
     val invalidDevices = new ListBuffer[String]()
@@ -52,7 +52,7 @@ class FlipcastMpnsRequestConsumer extends FlipcastRequestConsumer with FlipcastP
       val mpnsResult = Await.result(mpnsResponse, DEFAULT_TIMEOUT)
       mpnsResult.status match {
         case StatusCodes.OK =>
-          Flipcast.serviceRegistry.actor("pushMessageHistoryManager") ! RecordPushHistoryRequest(request.configName, r, message)
+          Flipcast.serviceRegistry.actor("pushMessageHistoryManager") ! RecordPushHistoryRequest[FlipcastPushRequest](request.configName, r, request)
           true
         case StatusCodes.BadRequest =>
           log.warn("[MPNS] Bad Request: " +mpnsResult.status )
@@ -83,8 +83,7 @@ class FlipcastMpnsRequestConsumer extends FlipcastRequestConsumer with FlipcastP
     })
     failedIds.size > 0 match {
       case true =>
-        val retryRequest = FlipcastPushRequest(request.configName, failedIds.toList, request.data, request.ttl, request.delayWhileIdle).toJson.compactPrint
-        resend(retryRequest)
+        resend(FlipcastPushRequest(request.configName, failedIds.toList, request.data, request.ttl, request.delayWhileIdle))
       case false =>
         None
     }

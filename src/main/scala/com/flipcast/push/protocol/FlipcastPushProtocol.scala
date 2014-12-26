@@ -16,11 +16,11 @@ trait FlipcastPushProtocol extends DefaultJsonProtocol with SprayJsonSupport {
     def write(obj: FlipcastPushRequest) = {
       val ttl = obj.ttl match {
         case  Some(x) => JsNumber(x)
-        case _ => JsNumber(0)
+        case _ => JsNumber(30)
       }
       val delayWhileIdle = obj.delayWhileIdle match {
         case Some(x) => JsBoolean(x)
-        case _ => JsBoolean(x = false)
+        case _ => JsBoolean(x = true)
       }
       val data = try {
         JsonParser(obj.data).asJsObject

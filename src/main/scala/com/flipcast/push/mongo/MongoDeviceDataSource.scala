@@ -6,7 +6,7 @@ import com.flipcast.mongo.ConnectionHelper
 import com.mongodb.casbah.commons.MongoDBObject
 import com.mongodb.util.JSON
 import com.mongodb.casbah.Imports._
-import com.flipcast.push.model.{PushHistoryData, DeviceOperatingSystemType, DeviceData}
+import com.flipcast.push.model.{SidelinedMessage, PushHistoryData, DeviceOperatingSystemType, DeviceData}
 import collection.JavaConverters._
 import com.flipcast.model.config.MongoConfig
 import com.flipcast.Flipcast
@@ -29,6 +29,7 @@ object MongoDeviceDataSource extends DeviceDataSource {
       createDeviceDetailsCollection(c)
     })
     createPushHistoryCollection()
+    createMessageSideLineCollection()
   }
 
   override def autoUpdateDeviceId(config: String, deviceIdentifier: String, newDeviceIdentifier: String) : Boolean = {
@@ -190,6 +191,31 @@ object MongoDeviceDataSource extends DeviceDataSource {
     PushHistoryData(total, resPlatform ++: resBrand ++: resModel ++: resBrand ++: resVersion)
   }
 
+  override def sidelineMessage(message: SidelinedMessage) = {
+    val collection = ConnectionHelper.collection("push_message_sidelined")
+    val data = MongoDBObject.newBuilder
+    data += "_id" -> message.id
+    data += "config" -> message.config
+    data += "messageType" -> message.messageType
+    data += "message" -> JSON.parse(message.message).asInstanceOf[DBObject]
+    data += "sentDate" -> message.sentDate
+    val result = collection.insert(data.result())
+    result.getN > 0
+  }
+
+  override def listSidelineMessage(config: String,filter : Map[String, Any], pageSize: Int, pageNo: Int) = {
+    val collection = ConnectionHelper.collection("push_message_sidelined")
+    val result = collection.find(buildQuery(filter, deleted = false, addDeleted = false)).skip(pageNo * pageSize).limit(pageSize)
+    result.iterator().asScala.map( data => {
+      SidelinedMessage(data.getAsOrElse[String]("_id", "Unknown"),
+        config,
+        data.getAsOrElse[String]("messageType", "Unknown"),
+        data.getAsOrElse[String]("message", "Unknown"),
+        data.getAsOrElse[Date]("sentDate", new Date())
+      )
+    }).toList
+  }
+
   private def buildQuery(filter: Map[String, Any], deleted: Boolean = false, addDeleted: Boolean = false) = {
     val query = MongoDBObject.newBuilder
     filter.foreach( d => {
@@ -258,5 +284,18 @@ object MongoDeviceDataSource extends DeviceDataSource {
     ConnectionHelper.createIndex(collectionName, Seq(("appName", 1), ("appVersion", 1), ("sentDate", 0), ("brand", 1)))
     ConnectionHelper.createIndex(collectionName, Seq(("brand", 1), ("sentDate", 0)))
   }
+
+  private def createMessageSideLineCollection() (implicit config: MongoConfig) {
+    val collectionName = "push_message_sidelined"
+    ConnectionHelper.createCollection(collectionName)
+    ConnectionHelper.createIndex(collectionName, Seq(("messageType", 1)))
+    ConnectionHelper.createIndex(collectionName, Seq(("config", 1)))
+    ConnectionHelper.createIndex(collectionName, Seq(("config", 1), ("messageType", 1)))
+    ConnectionHelper.createIndex(collectionName, Seq(("messageType", 1), ("sentDate", 0)))
+    ConnectionHelper.createIndex(collectionName, Seq(("config", 1), ("sentDate", 0)))
+    ConnectionHelper.createIndex(collectionName, Seq(("messageType", 1), ("config", 1), ("sentDate", 0)))
+    ConnectionHelper.collection("push_message_sidelined").createIndex(MongoDBObject("sentDate" -> 0, "expireAfterSeconds" -> 604800))
+  }
+
 
 }
