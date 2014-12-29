@@ -7,16 +7,17 @@ organization  := "com.flipcast"
 
 name          := "flipcast"
 
-version       := "0.1"
+version       := "2.1"
 
-scalaVersion  := "2.11.0"
+scalaVersion  := "2.11.2"
+
+javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint")
 
 scalacOptions := Seq(
   "-encoding", "UTF-8",
   "-feature",
   "-unchecked",
   "-deprecation",
-  "-target:jvm-1.6",
   "-language:postfixOps",
   "-language:implicitConversions",
   "-Xlog-reflective-calls",
