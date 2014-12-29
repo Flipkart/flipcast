@@ -11,12 +11,10 @@ APP_JAR="flipcast-service.jar"
 export OOM_RESTART_CMD="\"/etc/init.d/${PACKAGE} force-restart\""
 
 #Memory settings
-JAVA_OPTS="${JAVA_OPTS} -Xms1024m"
-JAVA_OPTS="${JAVA_OPTS} -Xmx1024m"
-JAVA_OPTS="${JAVA_OPTS} -Xmn512m"
-JAVA_OPTS="${JAVA_OPTS} -XX:NewSize=512m"
-JAVA_OPTS="${JAVA_OPTS} -XX:MaxNewSize=512m"
-
+JAVA_OPTS="${JAVA_OPTS} -Xms512m"
+JAVA_OPTS="${JAVA_OPTS} -Xmx512m"
+JAVA_OPTS="${JAVA_OPTS} -XX:NewSize=256m"
+JAVA_OPTS="${JAVA_OPTS} -XX:MaxNewSize=256m"
 
 # Set Server JVM
 JAVA_OPTS="${JAVA_OPTS} -server"
@@ -30,9 +28,6 @@ JAVA_OPTS="${JAVA_OPTS} -Djava.awt.headless=true"
 #Set encoding to UTF-8
 JAVA_OPTS="${JAVA_OPTS} -Dfile.encoding=UTF-8"
 
-#Program Name
-JAVA_OPTS="${JAVA_OPTS} -D${PACKAGE}"
-
 # Reduce the per-thread stack size
 JAVA_OPTS="${JAVA_OPTS} -Xss180k"
 
@@ -40,25 +35,17 @@ JAVA_OPTS="${JAVA_OPTS} -Xss180k"
 JAVA_OPTS="${JAVA_OPTS} -Djava.net.preferIPv4Stack=true"
 
 # GC Options
-JAVA_OPTS="${JAVA_OPTS} -XX:+UseParNewGC"
-JAVA_OPTS="${JAVA_OPTS} -XX:-UseParallelGC"
-JAVA_OPTS="${JAVA_OPTS} -XX:+UseConcMarkSweepGC"
-JAVA_OPTS="${JAVA_OPTS} -XX:+CMSParallelRemarkEnabled"
+JAVA_OPTS="${JAVA_OPTS} -XX:+UseCompressedOops"
+JAVA_OPTS="${JAVA_OPTS} -XX:+UseG1GC"
+JAVA_OPTS="${JAVA_OPTS} -XX:+DisableExplicitGC"
+JAVA_OPTS="${JAVA_OPTS} -XX:+UseTLAB"
 
 #Memory Setting
-JAVA_OPTS="${JAVA_OPTS} -XX:PermSize=256m"
-JAVA_OPTS="${JAVA_OPTS} -XX:MaxPermSize=256m"
+JAVA_OPTS="${JAVA_OPTS} -XX:MetaspaceSize=512m"
+JAVA_OPTS="${JAVA_OPTS} -XX:MaxMetaspaceSize=512m"
 
 #Enable super options (For HotSpot optimizations)
 JAVA_OPTS="${JAVA_OPTS} -XX:+AggressiveOpts"
-JAVA_OPTS="${JAVA_OPTS} -XX:+UseNUMA"
-
-#Disable Biased locking
-JAVA_OPTS="${JAVA_OPTS} -XX:-UseBiasedLocking"
-
-#Threading Policies
-JAVA_OPTS="${JAVA_OPTS} -XX:+UseThreadPriorities"
-JAVA_OPTS="${JAVA_OPTS} -XX:ThreadPriorityPolicy=30"
 
 # General Tuning Settings
 JAVA_OPTS="${JAVA_OPTS} -XX:CompileThreshold=50000"
@@ -72,7 +59,6 @@ JAVA_OPTS="${JAVA_OPTS} -Dcom.sun.management.jmxremote"
 JAVA_OPTS="${JAVA_OPTS} -Dcom.sun.management.jmxremote.port=29005"
 JAVA_OPTS="${JAVA_OPTS} -Dcom.sun.management.jmxremote.authenticate=false"
 JAVA_OPTS="${JAVA_OPTS} -Dcom.sun.management.jmxremote.ssl=false"
-JAVA_OPTS="${JAVA_OPTS} -Dhazelcast.jmx=true"
 
 #Java Executable
 JAVA=`which java`
