@@ -13,3 +13,8 @@
 * Deprecate RabbitMQ from infrastructure dependencies and move to akka.io distributed pubsub (http://letitcrash.com/post/55877737496/2-2-spotlight-publish-subscribe-in-cluster)
 * Akka 2.3.6 upgrade
 * Casbah 2.8.0-RC0 upgrade
+
+## 2.1 (December 29, 2014)
+* Adaptive Loadbalancing on akka cluster
+* Scala 2.11.2 update
+* Java 8 update
