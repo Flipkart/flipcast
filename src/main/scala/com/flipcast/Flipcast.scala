@@ -80,7 +80,11 @@ object Flipcast extends App {
 
   PushConfigurationManager.init()
 
-  var serviceState : ServiceState.Value = ServiceState.IN_ROTATION
+  var serviceState : ServiceState.Value = nodeRole match {
+    case "all" => ServiceState.IN_ROTATION
+    case "api" => ServiceState.IN_ROTATION
+    case _ => ServiceState.OUT_OF_ROTATION
+  }
 
   log.info("--------------------------------------------------------------------------")
   log.info("Flipcast Service startup.....")
@@ -107,9 +111,11 @@ object Flipcast extends App {
     log.info("Node role: " +nodeRole)
     log.info("******************************************************************")
     nodeRole match {
-      case x  if x == "all" || x == "worker" =>  startMessageConsumers()
+      case x  if x == "all" || x == "worker" =>
+        startMessageConsumers(isLocal = true)
       case _ =>
         log.warn("***** Message consumers disabled! No message will be processed in this node! *****")
+        startMessageConsumers(isLocal = false)
     }
 
     //Sideline message consumer which will persist any abandoned/sidelined message
@@ -129,11 +135,19 @@ object Flipcast extends App {
   /**
    * Start all the message consumers
    */
-  def startMessageConsumers() {
-    serviceRegistry.register[FlipcastGcmRequestConsumer]("gcmRequestConsumer", dispatcher = Option("akka.actor.gcm-dispatcher"))
-    serviceRegistry.register[FlipcastApnsRequestConsumer]("apnsRequestConsumer", dispatcher = Option("akka.actor.apns-dispatcher"))
-    serviceRegistry.register[FlipcastMpnsRequestConsumer]("mpnsRequestConsumer", dispatcher = Option("akka.actor.mpns-dispatcher"))
-    serviceRegistry.register[BulkMessageConsumer]("bulkMessageConsumer")
+  def startMessageConsumers(isLocal: Boolean) {
+    serviceRegistry.register[FlipcastGcmRequestConsumer]("gcmRequestConsumer",
+      instances = QueueConfigurationManager.config("gcm").workerInstances,
+      dispatcher = "akka.actor.gcm-dispatcher", isLocal = isLocal)
+    serviceRegistry.register[FlipcastApnsRequestConsumer]("apnsRequestConsumer",
+      instances = QueueConfigurationManager.config("apns").workerInstances,
+      dispatcher = "akka.actor.apns-dispatcher", isLocal = isLocal)
+    serviceRegistry.register[FlipcastMpnsRequestConsumer]("mpnsRequestConsumer",
+      instances = QueueConfigurationManager.config("mpns").workerInstances,
+      dispatcher = "akka.actor.mpns-dispatcher", isLocal = isLocal)
+    serviceRegistry.register[BulkMessageConsumer]("bulkMessageConsumer",
+      instances = QueueConfigurationManager.config("bulk").workerInstances,
+      isLocal = isLocal)
   }
 
   def startMetrics() {
