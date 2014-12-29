@@ -17,8 +17,9 @@ object QueueConfigurationManager {
   def config(configType: String) : QueueConfig = {
     val c = Flipcast.config.getConfig("flipcast.config.queue." + configType)
     QueueConfig(
-      c.getString("inputQueueName"),
-      c.getString("sidelineQueueName")
+      c.getString("workerName"),
+      c.getString("sidelineWorkerName"),
+      c.getInt("workerInstances")
     )
   }
 

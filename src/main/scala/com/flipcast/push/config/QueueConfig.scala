@@ -5,4 +5,4 @@ package com.flipcast.push.config
  *
  * @author Phaneesh Nagaraja
  */
-case class QueueConfig(inputQueueName: String, sidelineQueueName: String)
+case class QueueConfig(workerName: String, sidelineWorkerName: String, workerInstances: Int = 1)

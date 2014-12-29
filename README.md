@@ -17,6 +17,7 @@ Support for MongoDB datasource is provided out-of-the-box.
 | Version 1.0    | April 2014    |   Initial OSS release |
 | Version 1.0.1  | May 2014      |   Upgrade to Spray 1.3 & Scala 2.11.0 |
 | Version 2.0    | December 2014 |   Move to akka.io cluster & distributed pubsub |
+| Version 2.1    | December 2014 |   Adaptive Loadbalancing on akka cluster |
 
 ## Changelog
 Changelog can be viewed in [CHANGELOG.md](https://github.com/Flipkart/flipcast/blob/master/CHANGELOG.md) file

@@ -1,7 +1,5 @@
 package com.flipcast.services
 
-import akka.contrib.pattern.DistributedPubSubExtension
-import akka.contrib.pattern.DistributedPubSubMediator.Send
 import com.flipcast.Flipcast
 import com.flipcast.common.{BaseHttpService, BaseHttpServiceWorker}
 import com.flipcast.model.requests.{BulkMessageRequest, MulticastRequest, ServiceRequest}
@@ -53,8 +51,6 @@ class MulticastHttpService (implicit val context: akka.actor.ActorRefFactory,
 
 object MulticastHttpServiceWorker extends BaseHttpServiceWorker with FlipcastPushProtocol with BulkMessageRequestProtocol {
 
-  val mediator = DistributedPubSubExtension(Flipcast.system).mediator
-
   def process[T](request: T) = {
     request match {
       case request: MulticastRequest =>
@@ -68,7 +64,7 @@ object MulticastHttpServiceWorker extends BaseHttpServiceWorker with FlipcastPus
         var limit = 1
         List.range[Long](0, batches).foreach( batch => {
           val split = BulkMessageRequest(request.configName, request.filter, request.message, batch.toInt, limit * batchSize)
-          mediator ! Send(config.inputQueueName, split, localAffinity = false)
+          Flipcast.serviceRegistry.actorLookup(config.workerName) ! split
           limit += 1
         })
         ServiceSuccessResponse[MulticastSuccessResponse](MulticastSuccessResponse(deviceCount, batches))
