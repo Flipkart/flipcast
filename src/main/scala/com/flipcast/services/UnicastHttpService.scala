@@ -56,21 +56,25 @@ object UnicastHttpServiceWorker extends BaseHttpServiceWorker with FlipcastPushP
         val deviceResponse = DeviceDataSourceManager.dataSource(request.configName).get(request.configName, request.filter)
         deviceResponse match {
           case Some(device) =>
-            val messagePayload = PushMessageTransformerRegistry.transformer(request.configName).transform(request.configName, request.message.message)
+            val messagePayload = PushMessageTransformerRegistry.transformer(request.configName).transform(request.configName,
+              request.message.message)
             device.osName match {
               case DeviceOperatingSystemType.ANDROID =>
                 val framedMessage = FlipcastPushRequest(request.configName, List(device.cloudMessagingId),
-                  messagePayload.getPayload(DeviceOperatingSystemType.ANDROID).getOrElse("{}"), None, None)
+                  messagePayload.getPayload(DeviceOperatingSystemType.ANDROID).getOrElse("{}"), request.message.ttl,
+                  request.message.delayWhileIdle)
                 Flipcast.serviceRegistry.actorLookup(QueueConfigurationManager.config("gcm").workerName) ! framedMessage
                 ServiceSuccessResponse[UnicastSuccessResponse](UnicastSuccessResponse(device.deviceId, device.osName.toString))
               case DeviceOperatingSystemType.iOS =>
                 val framedMessage = FlipcastPushRequest(request.configName, List(device.cloudMessagingId),
-                  messagePayload.getPayload(DeviceOperatingSystemType.iOS).getOrElse("{}"), None, None)
+                  messagePayload.getPayload(DeviceOperatingSystemType.iOS).getOrElse("{}"), request.message.ttl,
+                  request.message.delayWhileIdle)
                 Flipcast.serviceRegistry.actorLookup(QueueConfigurationManager.config("apns").workerName) ! framedMessage
                 ServiceSuccessResponse[UnicastSuccessResponse](UnicastSuccessResponse(device.deviceId, device.osName.toString))
               case DeviceOperatingSystemType.WindowsPhone =>
                 val framedMessage = FlipcastPushRequest(request.configName, List(device.cloudMessagingId),
-                  messagePayload.getPayload(DeviceOperatingSystemType.WindowsPhone).getOrElse("{}"), None, None)
+                  messagePayload.getPayload(DeviceOperatingSystemType.WindowsPhone).getOrElse("{}"), request.message.ttl,
+                  request.message.delayWhileIdle)
                 Flipcast.serviceRegistry.actorLookup(QueueConfigurationManager.config("mpns").workerName) ! framedMessage
                 ServiceSuccessResponse[UnicastSuccessResponse](UnicastSuccessResponse(device.deviceId, device.osName.toString))
               case _ =>

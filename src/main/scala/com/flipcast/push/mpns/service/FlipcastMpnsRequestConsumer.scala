@@ -40,7 +40,7 @@ class FlipcastMpnsRequestConsumer extends FlipcastRequestConsumer[FlipcastPushRe
       val svcUrl = new URL(r)
       val mpnsHttpClient = MPNSServicePool.service(request.configName, svcUrl.getHost)
       val mId = HttpHeaders.RawHeader("X-MessageID", UUID.randomUUID().toString)
-      val mType = HttpHeaders.RawHeader("X-NotificationClass", "2")
+      val mType = HttpHeaders.RawHeader("X-NotificationClass", "22")
       val mTarget = HttpHeaders.RawHeader("X-WindowsPhone-Target", "toast")
       val lstHeaders = List(mId, mType, mTarget)
       val decodedMessage = new String(Base64.decodeBase64(request.data.getBytes))
@@ -81,11 +81,8 @@ class FlipcastMpnsRequestConsumer extends FlipcastRequestConsumer[FlipcastPushRe
     invalidDevices.foreach( r => {
       Flipcast.serviceRegistry.actor("deviceHouseKeepingManager") ! DeviceHousekeepingRequest(request.configName, r)
     })
-    failedIds.size > 0 match {
-      case true =>
-        resend(FlipcastPushRequest(request.configName, failedIds.toList, request.data, request.ttl, request.delayWhileIdle))
-      case false =>
-        None
+    if(failedIds.size > 0) {
+      resend(FlipcastPushRequest(request.configName, failedIds.toList, request.data, request.ttl, request.delayWhileIdle))
     }
     true
   }

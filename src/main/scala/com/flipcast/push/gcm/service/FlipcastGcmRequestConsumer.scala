@@ -36,7 +36,9 @@ class FlipcastGcmRequestConsumer extends FlipcastRequestConsumer[FlipcastPushReq
       case _ => config.defaultDelayWhileIdle
     }
     val ttl = request.ttl match {
-      case Some(x) => x
+      case Some(x) =>
+        if(x > 2592000) 2592000 //Default it to 4 weeks if the ttl is greater than 4 weeks
+        else x
       case _ =>  config.defaultExpiry
     }
     val gcmRequest = GcmRequest(request.registration_ids, request.data, delayWhileIdle, ttl)

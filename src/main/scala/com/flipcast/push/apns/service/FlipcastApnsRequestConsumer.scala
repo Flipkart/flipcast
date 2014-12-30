@@ -1,12 +1,13 @@
 package com.flipcast.push.apns.service
 
-import java.util.{Calendar, Date}
-
 import com.flipcast.Flipcast
 import com.flipcast.push.apns.protocol.ApnsProtocol
 import com.flipcast.push.common.FlipcastRequestConsumer
 import com.flipcast.push.model.requests.{FlipcastPushRequest, RecordPushHistoryRequest}
 import com.flipcast.push.protocol.FlipcastPushProtocol
+import org.joda.time.DateTime
+
+
 
 import scala.collection.JavaConverters._
 
@@ -28,10 +29,11 @@ class FlipcastApnsRequestConsumer extends FlipcastRequestConsumer[FlipcastPushRe
       case Some(x) => x
       case _ =>  config.defaultExpiry
     }
-    val c = Calendar.getInstance()
-    c.setTime(new Date())
-    c.add(Calendar.MINUTE, ttl)
-    service.push(request.registration_ids.asJavaCollection, request.data, c.getTime)
+    val expiry = ttl match {
+      case x if x > 2419200 => new DateTime().plusSeconds(2419200) //Default it to 28 days if the expiry is set to more than 28 days
+      case _ => new DateTime().plusSeconds(ttl)
+    }
+    service.push(request.registration_ids.asJavaCollection, request.data, expiry.toDate)
     //Record history for all successful devices
     request.registration_ids.par.foreach( r => {
       Flipcast.serviceRegistry.actor("pushMessageHistoryManager") ! RecordPushHistoryRequest[FlipcastPushRequest](request.configName, r, request)
