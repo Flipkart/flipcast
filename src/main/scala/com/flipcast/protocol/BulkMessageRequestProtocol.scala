@@ -77,7 +77,7 @@ trait BulkMessageRequestProtocol extends DefaultJsonProtocol with SprayJsonSuppo
       }
       val message = json.asJsObject.fields.contains("message") match {
         case true => json.asJsObject.fields("message").convertTo[PushMessage]
-        case _ => PushMessage("{}", Option(0), Option(true))
+        case _ => PushMessage("{}", Option(0), Option(true), Option("default"))
       }
       BulkMessageRequest(configName, query, message, start, end)
     }

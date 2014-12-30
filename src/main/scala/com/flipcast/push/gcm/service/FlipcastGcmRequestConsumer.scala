@@ -109,7 +109,7 @@ class FlipcastGcmRequestConsumer extends FlipcastRequestConsumer[FlipcastPushReq
             failedIds.isEmpty match {
               case true => None
               case false =>
-                resend(FlipcastPushRequest(request.configName, failedIds.toList, request.data, request.ttl, request.delayWhileIdle))
+                resend(FlipcastPushRequest(request.configName, failedIds.toList, request.data, request.ttl, request.delayWhileIdle, request.priority))
             }
             //Record history for all successful devices
             request.registration_ids.diff(failedIds.toList).par.foreach( r => {

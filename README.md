@@ -18,6 +18,7 @@ Support for MongoDB datasource is provided out-of-the-box.
 | Version 1.0.1  | May 2014      |   Upgrade to Spray 1.3 & Scala 2.11.0 |
 | Version 2.0    | December 2014 |   Move to akka.io cluster & distributed pubsub |
 | Version 2.1    | December 2014 |   Adaptive Loadbalancing on akka cluster |
+| Version 2.2    | December 2014 |   Priority support for push messages |
 
 ## Changelog
 Changelog can be viewed in [CHANGELOG.md](https://github.com/Flipkart/flipcast/blob/master/CHANGELOG.md) file
@@ -41,9 +42,9 @@ Changelog can be viewed in [CHANGELOG.md](https://github.com/Flipkart/flipcast/b
 ## Library Dependencies
 --------------------
 * [spray](http://spray.io) 1.3.2
-* [Scala](http://www.scala-lang.org) 2.11.0
+* [Scala](http://www.scala-lang.org) 2.11.2
 * [akka.io](http://akka.io) 2.3.6
-* [java-apns](https://github.com/notnoop/java-apns) - 0.2.3
+* [java-apns](https://github.com/notnoop/java-apns) - 1.0.0.Beta4
 * [casbah](http://mongodb.github.io/casbah) - 2.8.0-RC0
 
 ## Infrastructure Dependencies

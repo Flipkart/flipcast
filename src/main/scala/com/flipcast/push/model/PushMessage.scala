@@ -5,4 +5,4 @@ package com.flipcast.push.model
  *
  * @author Phaneesh Nagaraja
  */
-case class PushMessage(message: String, ttl: Option[Int], delayWhileIdle: Option[Boolean])
+case class PushMessage(message: String, ttl: Option[Int], delayWhileIdle: Option[Boolean], priority: Option[String])

@@ -74,12 +74,17 @@ class ServiceRegistry (implicit val system: ActorSystem) {
 
 
   /**
-   * Lookup for actors using akka actor system
+   * Lookup for actors using akka actor system and a priority tag
    * @param name name of the actor under "user" guardian
    * @return ActorSelection
    */
-  def actorLookup(name: String) = {
-    system.actorSelection("/user/" +name)
+  def actorLookup(name: String, priority: Option[String] = None) = {
+    priority match {
+      case Some(p) =>
+        system.actorSelection(String.format("/user/%s-%s",name, p))
+      case _ =>
+        system.actorSelection(String.format("/user/%s",name))
+    }
   }
 
 }

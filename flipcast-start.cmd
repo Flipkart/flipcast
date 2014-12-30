@@ -56,5 +56,9 @@ set JAVA_OPTS="%JAVA_OPTS% -Dcom.sun.management.jmxremote.port=29005"
 set JAVA_OPTS="%JAVA_OPTS% -Dcom.sun.management.jmxremote.authenticate=false"
 set JAVA_OPTS="%JAVA_OPTS% -Dcom.sun.management.jmxremote.ssl=false"
 
+REM Provide application configuration & log configuration file path
+set JAVA_OPTS="%JAVA_OPTS% -Dapp.config=config\\application.conf"
+set JAVA_OPTS="%JAVA_OPTS% -Dlogback.configurationFile=config\\logback.xml"
+
 REM Execute main application JAR
 java -jar "%JAVA_OPTS%" "%APP_JAR%"

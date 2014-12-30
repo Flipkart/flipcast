@@ -7,7 +7,7 @@ import akka.actor.{Actor, ActorSystem}
 import akka.event.slf4j.Logger
 import akka.util.Timeout
 import com.flipcast.Flipcast
-import com.flipcast.push.config.QueueConfigurationManager
+import com.flipcast.push.config.WorkerConfigurationManager
 import com.flipcast.push.model.SidelinedMessage
 import com.flipcast.push.model.requests.{FlipcastPushRequest, FlipcastRequest}
 import com.flipcast.push.protocol.FlipcastPushProtocol
@@ -33,7 +33,7 @@ abstract class  FlipcastRequestConsumer[T <: FlipcastRequest: ClassTag] extends 
 
   def consume(message: T) : Boolean
 
-  def config = QueueConfigurationManager.config(configType())
+  def config = WorkerConfigurationManager.config(configType())
 
   def init()
 
@@ -41,11 +41,11 @@ abstract class  FlipcastRequestConsumer[T <: FlipcastRequest: ClassTag] extends 
 
   override def preStart() {
     init()
-    log.info("Starting message consumer on: " +config.workerName +" Worker: " +self.path)
+    log.info("Starting message consumer on: " +config.configName +" Worker: " +self.path)
   }
 
   override def postStop(): Unit = {
-    log.info("Stopping message consumer on: " +config.workerName +" Worker: " +self.path)
+    log.info("Stopping message consumer on: " +config.configName +" Worker: " +self.path)
   }
 
   def receive = {
@@ -67,14 +67,16 @@ abstract class  FlipcastRequestConsumer[T <: FlipcastRequest: ClassTag] extends 
   private def sideline(message: T) {
     message match {
       case x: FlipcastPushRequest =>
-        Flipcast.serviceRegistry.actor(config.sidelineWorkerName) !
+        Flipcast.serviceRegistry.actorLookup(config.priorityConfigs(x.priority.getOrElse("default")).sidelineWorkerName) !
           SidelinedMessage(UUID.randomUUID().toString,
             x.configName, configType(), x.toJson.compactPrint, new Date())
     }
   }
 
   def resend(message: T) {
-    Flipcast.serviceRegistry.actor(config.workerName) ! message
+    message match {
+      case x: FlipcastPushRequest =>
+        Flipcast.serviceRegistry.actorLookup(config.priorityConfigs(x.priority.getOrElse("default")).workerName) ! message
+    }
   }
-
 }

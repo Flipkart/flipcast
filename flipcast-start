@@ -60,6 +60,10 @@ JAVA_OPTS="${JAVA_OPTS} -Dcom.sun.management.jmxremote.port=29005"
 JAVA_OPTS="${JAVA_OPTS} -Dcom.sun.management.jmxremote.authenticate=false"
 JAVA_OPTS="${JAVA_OPTS} -Dcom.sun.management.jmxremote.ssl=false"
 
+#Provide application configuration & log configuration file path
+JAVA_OPTS="${JAVA_OPTS} -Dapp.config=config/application.conf"
+JAVA_OPTS="${JAVA_OPTS} -Dlogback.configurationFile=config/logback.xml"
+
 #Java Executable
 JAVA=`which java`
 
