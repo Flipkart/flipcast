@@ -14,4 +14,4 @@ case class FlipcastPushRequest(configName: String,
                                registration_ids: List[String],
                                data: String,
                                ttl: Option[Int],
-                               delayWhileIdle: Option[Boolean]) extends FlipcastRequest
+                               delayWhileIdle: Option[Boolean], priority: Option[String]) extends FlipcastRequest

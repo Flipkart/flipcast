@@ -6,7 +6,7 @@ import com.flipcast.model.requests.{BulkMessageRequest, MulticastRequest, Servic
 import com.flipcast.model.responses.{ServiceBadRequestResponse, ServiceSuccessResponse, _}
 import com.flipcast.protocol.BulkMessageRequestProtocol
 import com.flipcast.push.common.DeviceDataSourceManager
-import com.flipcast.push.config.QueueConfigurationManager
+import com.flipcast.push.config.WorkerConfigurationManager
 import com.flipcast.push.model.PushMessage
 import com.flipcast.push.protocol.{FlipcastPushProtocol, PushMessageProtocol}
 import spray.json._
@@ -54,7 +54,7 @@ object MulticastHttpServiceWorker extends BaseHttpServiceWorker with FlipcastPus
   def process[T](request: T) = {
     request match {
       case request: MulticastRequest =>
-        val config = QueueConfigurationManager.bulkConfig()
+        val config = WorkerConfigurationManager.bulkConfig()
         val deviceCount = DeviceDataSourceManager.dataSource(request.configName).count(request.configName, request.filter)
         val batchSize = Flipcast.serverConfig.bulkMessageBatchSize
         val batches = deviceCount > batchSize match {
@@ -64,7 +64,7 @@ object MulticastHttpServiceWorker extends BaseHttpServiceWorker with FlipcastPus
         var limit = 1
         List.range[Long](0, batches).foreach( batch => {
           val split = BulkMessageRequest(request.configName, request.filter, request.message, batch.toInt, limit * batchSize)
-          Flipcast.serviceRegistry.actorLookup(config.workerName) ! split
+          Flipcast.serviceRegistry.actorLookup(config.priorityConfigs(request.message.priority.getOrElse("default")).workerName) ! split
           limit += 1
         })
         ServiceSuccessResponse[MulticastSuccessResponse](MulticastSuccessResponse(deviceCount, batches))

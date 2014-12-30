@@ -1,5 +1,6 @@
 package com.flipcast
 
+import java.io.File
 import java.net.InetAddress
 import java.util.concurrent.TimeUnit
 
@@ -53,7 +54,7 @@ object Flipcast extends App {
   /**
    * Load application configuration
    */
-  lazy val config = ConfigFactory.load()
+  lazy val config = ConfigFactory.parseFile(new File(System.getProperty("app.config"))).resolve()
 
   /**
    * Actor system for flipcast service
@@ -136,18 +137,25 @@ object Flipcast extends App {
    * Start all the message consumers
    */
   def startMessageConsumers(isLocal: Boolean) {
-    serviceRegistry.register[FlipcastGcmRequestConsumer]("gcmRequestConsumer",
-      instances = QueueConfigurationManager.config("gcm").workerInstances,
-      dispatcher = "akka.actor.gcm-dispatcher", isLocal = isLocal)
-    serviceRegistry.register[FlipcastApnsRequestConsumer]("apnsRequestConsumer",
-      instances = QueueConfigurationManager.config("apns").workerInstances,
-      dispatcher = "akka.actor.apns-dispatcher", isLocal = isLocal)
-    serviceRegistry.register[FlipcastMpnsRequestConsumer]("mpnsRequestConsumer",
-      instances = QueueConfigurationManager.config("mpns").workerInstances,
-      dispatcher = "akka.actor.mpns-dispatcher", isLocal = isLocal)
-    serviceRegistry.register[BulkMessageConsumer]("bulkMessageConsumer",
-      instances = QueueConfigurationManager.config("bulk").workerInstances,
-      isLocal = isLocal)
+    WorkerConfigurationManager.config("gcm").priorityConfigs.foreach{ case (w, c) => {
+      serviceRegistry.register[FlipcastGcmRequestConsumer](c.workerName,
+        instances = c.workerInstances,
+        dispatcher = "akka.actor.gcm-dispatcher", isLocal = isLocal)
+    }}
+    WorkerConfigurationManager.config("apns").priorityConfigs.foreach{ case (w, c) => {
+      serviceRegistry.register[FlipcastApnsRequestConsumer](c.workerName,
+        instances = c.workerInstances,
+        dispatcher = "akka.actor.apns-dispatcher", isLocal = isLocal)
+    }}
+    WorkerConfigurationManager.config("mpns").priorityConfigs.foreach{ case (w, c) => {
+      serviceRegistry.register[FlipcastMpnsRequestConsumer](c.workerName,
+        instances = c.workerInstances,
+        dispatcher = "akka.actor.mpns-dispatcher", isLocal = isLocal)
+    }}
+    WorkerConfigurationManager.config("bulk").priorityConfigs.foreach{ case (w, c) => {
+      serviceRegistry.register[BulkMessageConsumer](c.workerName,
+        instances = c.workerInstances, isLocal = isLocal)
+    }}
   }
 
   def startMetrics() {

@@ -1,9 +1,8 @@
 package com.flipcast.push.protocol
 
-import spray.json._
-import spray.httpx.SprayJsonSupport
-import scala.Some
 import com.flipcast.push.model.PushMessage
+import spray.httpx.SprayJsonSupport
+import spray.json._
 
 /**
  * Serializer and deserializer for push message payload
@@ -23,10 +22,15 @@ trait PushMessageProtocol extends DefaultJsonProtocol with SprayJsonSupport {
         case Some(x) => JsBoolean(x)
         case _ => JsNull
       }
+      val priority = obj.priority match {
+        case Some(x) => JsString(x)
+        case _ => JsNull
+      }
       JsObject(
         "message" -> JsonParser(obj.message).asJsObject,
         "ttl" -> ttl,
-        "delayWhileIdle" -> delayWhileIdle
+        "delayWhileIdle" -> delayWhileIdle,
+        "priority" -> priority
       )
     }
 
@@ -47,11 +51,19 @@ trait PushMessageProtocol extends DefaultJsonProtocol with SprayJsonSupport {
           }
         case _ => None
       }
+      val priority = json.asJsObject.fields.contains("priority") match {
+        case true =>
+          json.asJsObject.fields("priority") match {
+            case a: JsString => Option(a.value)
+            case _ => None
+          }
+        case _ => None
+      }
       val message = json.asJsObject.fields.contains("message") match {
         case true => json.asJsObject.fields("message").compactPrint
         case _ => "{}"
       }
-      PushMessage(message, ttl, delayWhileIdle)
+      PushMessage(message, ttl, delayWhileIdle, priority)
     }
   }
 }

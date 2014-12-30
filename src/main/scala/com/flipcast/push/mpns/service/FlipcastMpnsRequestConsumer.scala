@@ -82,7 +82,7 @@ class FlipcastMpnsRequestConsumer extends FlipcastRequestConsumer[FlipcastPushRe
       Flipcast.serviceRegistry.actor("deviceHouseKeepingManager") ! DeviceHousekeepingRequest(request.configName, r)
     })
     if(failedIds.size > 0) {
-      resend(FlipcastPushRequest(request.configName, failedIds.toList, request.data, request.ttl, request.delayWhileIdle))
+      resend(FlipcastPushRequest(request.configName, failedIds.toList, request.data, request.ttl, request.delayWhileIdle, request.priority))
     }
     true
   }

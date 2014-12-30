@@ -5,7 +5,7 @@ import com.flipcast.common.{BaseHttpService, BaseHttpServiceWorker}
 import com.flipcast.model.requests.{ServiceRequest, UnicastRequest}
 import com.flipcast.model.responses.{ServiceBadRequestResponse, ServiceNotFoundResponse, ServiceSuccessResponse, ServiceUnhandledResponse, _}
 import com.flipcast.push.common.{DeviceDataSourceManager, PushMessageTransformerRegistry}
-import com.flipcast.push.config.QueueConfigurationManager
+import com.flipcast.push.config.WorkerConfigurationManager
 import com.flipcast.push.model.requests.FlipcastPushRequest
 import com.flipcast.push.model.{DeviceOperatingSystemType, PushMessage}
 import com.flipcast.push.protocol.{FlipcastPushProtocol, PushMessageProtocol}
@@ -62,20 +62,20 @@ object UnicastHttpServiceWorker extends BaseHttpServiceWorker with FlipcastPushP
               case DeviceOperatingSystemType.ANDROID =>
                 val framedMessage = FlipcastPushRequest(request.configName, List(device.cloudMessagingId),
                   messagePayload.getPayload(DeviceOperatingSystemType.ANDROID).getOrElse("{}"), request.message.ttl,
-                  request.message.delayWhileIdle)
-                Flipcast.serviceRegistry.actorLookup(QueueConfigurationManager.config("gcm").workerName) ! framedMessage
+                  request.message.delayWhileIdle, request.message.priority)
+                Flipcast.serviceRegistry.actorLookup(WorkerConfigurationManager.worker("gcm", request.message.priority.getOrElse("default"))) ! framedMessage
                 ServiceSuccessResponse[UnicastSuccessResponse](UnicastSuccessResponse(device.deviceId, device.osName.toString))
               case DeviceOperatingSystemType.iOS =>
                 val framedMessage = FlipcastPushRequest(request.configName, List(device.cloudMessagingId),
                   messagePayload.getPayload(DeviceOperatingSystemType.iOS).getOrElse("{}"), request.message.ttl,
-                  request.message.delayWhileIdle)
-                Flipcast.serviceRegistry.actorLookup(QueueConfigurationManager.config("apns").workerName) ! framedMessage
+                  request.message.delayWhileIdle, request.message.priority)
+                Flipcast.serviceRegistry.actorLookup(WorkerConfigurationManager.worker("apns", request.message.priority.getOrElse("default"))) ! framedMessage
                 ServiceSuccessResponse[UnicastSuccessResponse](UnicastSuccessResponse(device.deviceId, device.osName.toString))
               case DeviceOperatingSystemType.WindowsPhone =>
                 val framedMessage = FlipcastPushRequest(request.configName, List(device.cloudMessagingId),
                   messagePayload.getPayload(DeviceOperatingSystemType.WindowsPhone).getOrElse("{}"), request.message.ttl,
-                  request.message.delayWhileIdle)
-                Flipcast.serviceRegistry.actorLookup(QueueConfigurationManager.config("mpns").workerName) ! framedMessage
+                  request.message.delayWhileIdle, request.message.priority)
+                Flipcast.serviceRegistry.actorLookup(WorkerConfigurationManager.worker("mpns", request.message.priority.getOrElse("default"))) ! framedMessage
                 ServiceSuccessResponse[UnicastSuccessResponse](UnicastSuccessResponse(device.deviceId, device.osName.toString))
               case _ =>
                 ServiceBadRequestResponse("Invalid device type: " +device.osName.toString)

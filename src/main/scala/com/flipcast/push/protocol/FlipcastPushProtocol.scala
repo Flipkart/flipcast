@@ -68,12 +68,21 @@ trait FlipcastPushProtocol extends DefaultJsonProtocol with SprayJsonSupport {
           }
         case _ => false
       }
+      val priority = json.asJsObject.fields.contains("priority") match {
+        case true =>
+          json.asJsObject.fields("priority") match {
+            case a: JsString => Option(a.value)
+            case _ => None
+          }
+        case _ => None
+      }
+
       val data = json.asJsObject.fields.contains("data") match {
         case true => json.asJsObject.fields("data").compactPrint
         case _ => "{}"
       }
       FlipcastPushRequest(configName, registration_ids.filter( _.trim.length > 0), data, Option(ttl),
-        Option(delayWhileIdle))
+        Option(delayWhileIdle), priority)
     }
   }
 

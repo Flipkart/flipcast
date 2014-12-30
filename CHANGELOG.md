@@ -18,3 +18,7 @@
 * Adaptive Loadbalancing on akka cluster
 * Scala 2.11.2 update
 * Java 8 update
+
+## 2.2 (December 30, 2014)
+* Priority support
+* External configuration files (In config directory)

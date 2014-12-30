@@ -4,7 +4,7 @@ import com.flipcast.Flipcast
 import com.flipcast.model.requests.BulkMessageRequest
 import com.flipcast.protocol.BulkMessageRequestProtocol
 import com.flipcast.push.common.{DeviceDataSourceManager, FlipcastRequestConsumer, PushMessageTransformerRegistry}
-import com.flipcast.push.config.QueueConfigurationManager
+import com.flipcast.push.config.WorkerConfigurationManager
 import com.flipcast.push.model.DeviceOperatingSystemType
 import com.flipcast.push.model.requests.FlipcastPushRequest
 import com.flipcast.push.protocol.FlipcastPushProtocol
@@ -40,8 +40,9 @@ class BulkMessageConsumer extends FlipcastRequestConsumer[BulkMessageRequest]
         deviceResponse(DeviceOperatingSystemType.ANDROID).grouped(100).foreach( dList => {
           val deviceIds = dList.map( _.cloudMessagingId).toList
           val framedMessage = FlipcastPushRequest(request.configName, deviceIds,
-            messagePayload.getPayload(DeviceOperatingSystemType.ANDROID).getOrElse("{}"), None, None)
-          Flipcast.serviceRegistry.actor(QueueConfigurationManager.config("gcm").workerName) ! framedMessage
+            messagePayload.getPayload(DeviceOperatingSystemType.ANDROID).getOrElse("{}"), request.message.ttl,
+            request.message.delayWhileIdle, request.message.priority)
+          Flipcast.serviceRegistry.actorLookup(WorkerConfigurationManager.worker("gcm", request.message.priority.getOrElse("default"))) ! framedMessage
         })
       case false =>
         log.warn("No Android devices in batch for request: " +request)
@@ -51,19 +52,21 @@ class BulkMessageConsumer extends FlipcastRequestConsumer[BulkMessageRequest]
         deviceResponse(DeviceOperatingSystemType.iOS).grouped(100).foreach( dList => {
           val deviceIds = dList.map( _.cloudMessagingId).toList
           val framedMessage = FlipcastPushRequest(request.configName, deviceIds,
-            messagePayload.getPayload(DeviceOperatingSystemType.iOS).getOrElse("{}"), None, None)
-          Flipcast.serviceRegistry.actor(QueueConfigurationManager.config("apns").workerName) ! framedMessage
+            messagePayload.getPayload(DeviceOperatingSystemType.iOS).getOrElse("{}"), request.message.ttl,
+            request.message.delayWhileIdle, request.message.priority)
+          Flipcast.serviceRegistry.actorLookup(WorkerConfigurationManager.worker("apns", request.message.priority.getOrElse("default"))) ! framedMessage
         })
       case false =>
-        log.warn("No iOs devices in batch for request: " +request)
+        log.warn("No iOS devices in batch for request: " +request)
     }
     deviceResponse.contains(DeviceOperatingSystemType.WindowsPhone) match {
       case true =>
         deviceResponse(DeviceOperatingSystemType.WindowsPhone).grouped(100).foreach( dList => {
           val deviceIds = dList.map( _.cloudMessagingId).toList
           val framedMessage = FlipcastPushRequest(request.configName, deviceIds,
-            messagePayload.getPayload(DeviceOperatingSystemType.WindowsPhone).getOrElse("{}"), None, None)
-          Flipcast.serviceRegistry.actor(QueueConfigurationManager.config("mpns").workerName) ! framedMessage
+            messagePayload.getPayload(DeviceOperatingSystemType.WindowsPhone).getOrElse("{}"), request.message.ttl,
+            request.message.delayWhileIdle, request.message.priority)
+          Flipcast.serviceRegistry.actorLookup(WorkerConfigurationManager.worker("apns", request.message.priority.getOrElse("default"))) ! framedMessage
         })
       case false =>
         log.warn("No Windows Phone devices in batch for request: " +request)
