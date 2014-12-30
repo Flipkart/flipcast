@@ -1,9 +1,9 @@
 package com.flipcast.push.apns.service
 
-import com.google.common.cache.{LoadingCache, CacheLoader, CacheBuilder}
-import com.notnoop.apns.{APNS, ApnsService}
-import com.flipcast.push.config.PushConfigurationManager
 import akka.event.slf4j.Logger
+import com.flipcast.push.config.PushConfigurationManager
+import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
+import com.notnoop.apns.{APNS, ApnsService}
 
 /**
  * Service pool for APNS service
@@ -27,12 +27,14 @@ object ApnsServicePool {
                   log.info("Creating apns service for config: " +s.apns)
                   APNS.newService()
                   .withCert(s.apns.certificate, s.apns.password)
+                  .asQueued()
                   .withSandboxDestination()
                   .build()
                 case false =>
                   log.info("Creating apns service for config: " +s.apns)
                   APNS.newService()
                     .withCert(s.apns.certificate, s.apns.password)
+                    .asQueued()
                     .withProductionDestination()
                     .build()
               }

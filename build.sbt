@@ -49,7 +49,7 @@ libraryDependencies ++= Seq(
   "commons-validator"               %    "commons-validator"             % "1.4.0",
   "commons-codec"                   %    "commons-codec"                 % "1.5",
   "com.google.guava"                %    "guava"                         % "15.0",
-  "com.notnoop.apns"                %    "apns"                          % "0.2.3",
+  "com.notnoop.apns"                %    "apns"                          % "1.0.0.Beta4",
   "org.mongodb"                     %%   "casbah"                        % "2.8.0-RC0",
   "commons-io"                      %    "commons-io"                    % "2.4",
   "com.google.code.findbugs"        %    "jsr305"                        % "2.0.3",
